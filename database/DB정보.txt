@@ -1,0 +1,17 @@
+DB정보 
+------------------------------------------------------------------------------------------------------------------------
+DB_CLUSTER_ARN
+arnawsrdsap-northeast-2956723945403clusterkbds-happyloop-aurora-survey
+
+DB_SECRET_ARN
+arnawssecretsmanagerap-northeast-2956723945403secretrds!cluster-e998fc48-9aa5-47c7-8984-f8f13f35d081-dr5lCq
+
+DB_NAME
+postgres
+
+username
+postgres
+
+password
+7KfCbjphdXHp0!qPnWC>o~CMV:8C
+------------------------------------------------------------------------------------------------------------------------
