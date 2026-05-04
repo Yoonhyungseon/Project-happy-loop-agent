@@ -1,0 +1,48 @@
+TEST1
+스타뱅킹용 VOC 설문지 만들어줘. 모바일 앱 최근 30일 이용 고객 대상이고, 5점 척도 6문항과 주관식 2문항으로 만들어줘.
+
+=================================================================================================================================================================================
+TEST2
+아래 JSON은 포털 RDS에서 조회한 설문 정의와 집계 응답 데이터다.
+이 데이터를 바탕으로 관리자용 VOC 보고서를 생성해줘.
+
+보고서는 매우 간결한 JSON 객체 하나만 출력해.
+areas에는 cat, avg, idx, status만 포함해.
+features, issues, actions 배열은 출력하지 마.
+summary, point, action, conclusion은 각각 한 문장만 작성해.
+
+{
+  "type": "REPORT_INPUT",
+  "survey": {
+    "title": "스타뱅킹 모바일 앱 이용 고객 경험 설문",
+    "service": "스타뱅킹",
+    "surveyType": "VOC"
+  },
+  "aggregation": {
+    "responseCount": 124,
+    "overall": {
+      "avg": 3.52,
+      "positiveRate": 55.6,
+      "negativeRate": 25.8,
+      "satisfactionIndex": 29.8,
+      "highestCategory": "계좌 조회",
+      "lowestCategory": "메뉴 탐색"
+    },
+    "scoreResults": [
+      {"category": "로그인/인증", "avgScore": 4.18, "satisfactionIndex": 72.5},
+      {"category": "계좌 조회", "avgScore": 4.42, "satisfactionIndex": 83.9},
+      {"category": "이체", "avgScore": 3.12, "satisfactionIndex": 11.3},
+      {"category": "메뉴 탐색", "avgScore": 2.86, "satisfactionIndex": -10.5},
+      {"category": "앱 속도/안정성", "avgScore": 3.05, "satisfactionIndex": 4.1},
+      {"category": "화면 UX", "avgScore": 3.48, "satisfactionIndex": 33.9}
+    ],
+    "topIssues": [
+      "메뉴 탐색이 어렵다",
+      "이체 단계가 복잡하다",
+      "앱 실행과 화면 전환이 느리다"
+    ]
+  }
+}
+
+
+=================================================================================================================================================================================

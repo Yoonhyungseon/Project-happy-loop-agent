@@ -1,0 +1,49 @@
+survey-generator-agent
+VOC 설문 생성 및 응답 기반 보고서 생성을 위한 Bedrock voc-survey-agent
+
+kbds-happyloop-voc-survey-kb
+스타뱅킹 VOC 설문 생성 및 응답 기반 보고서 생성을 위한 기준 문서 지식 기반
+voc-survey-s3-source
+
+DB_CLUSTER_ARN
+arn:aws:rds:ap-northeast-2:956723945403:cluster:kbds-happyloop-aurora-survey
+
+DB_SECRET_ARN
+arn:aws:secretsmanager:ap-northeast-2:956723945403:secret:rds!cluster-e998fc48-9aa5-47c7-8984-f8f13f35d081-dr5lCq
+
+DB_NAME
+postgres
+
+
+username postgres
+password 7KfCbjphdXHp0!qPnWC>o~CMV:8C
+=================================================================================================================================================================================
+지금까지 한것
+1. Bedrock Agent 생성
+2. Knowledge Base 생성
+3. S3 Vectors 기반 RAG 연결
+4. 설문 생성 테스트 성공
+5. 보고서 생성 테스트 성공
+6. SURVEY JSON / REPORT JSON 최소 구조 확정
+7. Comprehend 호출 Lambda 생성 테스트 성공
+
+미완료
+1. Bedrock Agent 호출 Lambda
+2. Step Functions 워크플로우
+3. Controller Lambda
+4. API Gateway 또는 AppSync
+5. RDS/Aurora
+6. DB Handler Lambda
+=================================================================================================================================================================================
+[보고서 생성]
+
+사용자 클릭
+→ Controller Lambda
+→ Step Functions
+→ DB Handler Lambda로 RDS 조회
+→ Analyze Text Lambda로 Comprehend 분석
+→ DB Handler Lambda로 분석 결과 저장
+→ DB Handler Lambda로 REPORT_INPUT 생성
+→ Invoke Agent Lambda로 보고서 생성
+→ DB Handler Lambda로 보고서 저장
+→ Vue에 reportId 또는 report JSON 반환

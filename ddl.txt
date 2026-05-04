@@ -1,0 +1,153 @@
+CREATE TABLE IF NOT EXISTS survey (
+    survey_id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    service VARCHAR(100) NOT NULL,
+    survey_type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS survey_question (
+    survey_id VARCHAR(50) NOT NULL,
+    question_code VARCHAR(20) NOT NULL,
+    question_type VARCHAR(20) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    question_text TEXT NOT NULL,
+    display_order INTEGER NOT NULL,
+    PRIMARY KEY (survey_id, question_code)
+);
+
+CREATE TABLE IF NOT EXISTS survey_response (
+    response_id VARCHAR(50) PRIMARY KEY,
+    survey_id VARCHAR(50) NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS survey_answer (
+    answer_id VARCHAR(50) PRIMARY KEY,
+    response_id VARCHAR(50) NOT NULL,
+    survey_id VARCHAR(50) NOT NULL,
+    question_code VARCHAR(20) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    answer_type VARCHAR(20) NOT NULL,
+    score_value INTEGER,
+    text_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS text_analysis (
+    answer_id VARCHAR(50) PRIMARY KEY,
+    survey_id VARCHAR(50) NOT NULL,
+    question_code VARCHAR(20) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    sentiment VARCHAR(20),
+    pos_score NUMERIC(10, 6),
+    neu_score NUMERIC(10, 6),
+    neg_score NUMERIC(10, 6),
+    mix_score NUMERIC(10, 6),
+    keywords JSONB,
+    analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS survey_report (
+    report_id VARCHAR(50) PRIMARY KEY,
+    survey_id VARCHAR(50) NOT NULL,
+    report_json JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+
+
+
+=================================================================================================================================================================================
+test data1
+INSERT INTO survey (
+    survey_id,
+    title,
+    service,
+    survey_type
+)
+VALUES (
+    'S001',
+    '스타뱅킹 모바일 앱 이용 고객 경험 설문',
+    '스타뱅킹',
+    'VOC'
+)
+ON CONFLICT (survey_id) DO NOTHING;
+
+INSERT INTO survey_question (
+    survey_id,
+    question_code,
+    question_type,
+    category,
+    question_text,
+    display_order
+)
+VALUES
+('S001', 'Q01', 'SC5', '로그인/인증', '로그인 및 인증 과정의 편의성에 대해 만족하십니까?', 1),
+('S001', 'Q02', 'SC5', '계좌 조회', '계좌 조회 기능의 편의성에 대해 만족하십니까?', 2),
+('S001', 'Q03', 'SC5', '이체', '이체 기능의 편의성에 대해 만족하십니까?', 3),
+('S001', 'Q04', 'SC5', '메뉴 탐색', '메뉴 탐색의 편의성에 대해 만족하십니까?', 4),
+('S001', 'Q05', 'SC5', '앱 속도/안정성', '앱의 속도와 안정성에 대해 만족하십니까?', 5),
+('S001', 'Q06', 'SC5', '화면 UX', '화면의 UX에 대해 만족하십니까?', 6),
+('S001', 'Q07', 'TXT', '만족 요인', '스타뱅킹 모바일 앱을 사용하면서 가장 만족스러운 점은 무엇인가요?', 7),
+('S001', 'Q08', 'TXT', '개선 의견', '스타뱅킹 모바일 앱을 개선하기 위해 제안하시는 점은 무엇인가요?', 8)
+ON CONFLICT (survey_id, question_code) DO NOTHING;
+=================================================================================================================================================================================
+test data2
+INSERT INTO survey_response (
+    response_id,
+    survey_id
+)
+VALUES
+('R001', 'S001'),
+('R002', 'S001'),
+('R003', 'S001'),
+('R004', 'S001')
+ON CONFLICT (response_id) DO NOTHING;
+
+INSERT INTO survey_answer (
+    answer_id,
+    response_id,
+    survey_id,
+    question_code,
+    category,
+    answer_type,
+    score_value,
+    text_value
+)
+VALUES
+('A001-Q01', 'R001', 'S001', 'Q01', '로그인/인증', 'SC5', 5, NULL),
+('A001-Q02', 'R001', 'S001', 'Q02', '계좌 조회', 'SC5', 5, NULL),
+('A001-Q03', 'R001', 'S001', 'Q03', '이체', 'SC5', 3, NULL),
+('A001-Q04', 'R001', 'S001', 'Q04', '메뉴 탐색', 'SC5', 2, NULL),
+('A001-Q05', 'R001', 'S001', 'Q05', '앱 속도/안정성', 'SC5', 3, NULL),
+('A001-Q06', 'R001', 'S001', 'Q06', '화면 UX', 'SC5', 4, NULL),
+
+('A002-Q01', 'R002', 'S001', 'Q01', '로그인/인증', 'SC5', 4, NULL),
+('A002-Q02', 'R002', 'S001', 'Q02', '계좌 조회', 'SC5', 5, NULL),
+('A002-Q03', 'R002', 'S001', 'Q03', '이체', 'SC5', 3, NULL),
+('A002-Q04', 'R002', 'S001', 'Q04', '메뉴 탐색', 'SC5', 2, NULL),
+('A002-Q05', 'R002', 'S001', 'Q05', '앱 속도/안정성', 'SC5', 3, NULL),
+('A002-Q06', 'R002', 'S001', 'Q06', '화면 UX', 'SC5', 3, NULL),
+
+('A003-Q01', 'R003', 'S001', 'Q01', '로그인/인증', 'SC5', 4, NULL),
+('A003-Q02', 'R003', 'S001', 'Q02', '계좌 조회', 'SC5', 4, NULL),
+('A003-Q03', 'R003', 'S001', 'Q03', '이체', 'SC5', 3, NULL),
+('A003-Q04', 'R003', 'S001', 'Q04', '메뉴 탐색', 'SC5', 3, NULL),
+('A003-Q05', 'R003', 'S001', 'Q05', '앱 속도/안정성', 'SC5', 2, NULL),
+('A003-Q06', 'R003', 'S001', 'Q06', '화면 UX', 'SC5', 3, NULL),
+
+('A004-Q01', 'R004', 'S001', 'Q01', '로그인/인증', 'SC5', 5, NULL),
+('A004-Q02', 'R004', 'S001', 'Q02', '계좌 조회', 'SC5', 5, NULL),
+('A004-Q03', 'R004', 'S001', 'Q03', '이체', 'SC5', 4, NULL),
+('A004-Q04', 'R004', 'S001', 'Q04', '메뉴 탐색', 'SC5', 2, NULL),
+('A004-Q05', 'R004', 'S001', 'Q05', '앱 속도/안정성', 'SC5', 3, NULL),
+('A004-Q06', 'R004', 'S001', 'Q06', '화면 UX', 'SC5', 4, NULL),
+
+('A001', 'R001', 'S001', 'Q07', '만족 요인', 'TXT', NULL, '계좌 조회가 빠르고 거래내역을 확인하기 편합니다.'),
+('A002', 'R002', 'S001', 'Q08', '개선 의견', 'TXT', NULL, '메뉴가 많아서 원하는 기능을 찾기 어렵고, 이체 단계가 복잡합니다.'),
+('A003', 'R003', 'S001', 'Q08', '개선 의견', 'TXT', NULL, '앱 실행 후 첫 화면 로딩이 가끔 느립니다.'),
+('A004', 'R004', 'S001', 'Q07', '만족 요인', 'TXT', NULL, '로그인 방식이 간단해서 자주 사용하기 좋습니다.')
+ON CONFLICT (answer_id) DO NOTHING;

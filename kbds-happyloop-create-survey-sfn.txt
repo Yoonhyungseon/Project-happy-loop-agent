@@ -1,0 +1,68 @@
+{
+  "Comment": "Happyloop VOC survey creation workflow with optional reference survey",
+  "StartAt": "CheckReferenceSurvey",
+  "States": {
+    "CheckReferenceSurvey": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.referenceSurveyId",
+          "IsPresent": true,
+          "Next": "GetSurveyReferenceData"
+        }
+      ],
+      "Default": "InvokeAgent"
+    },
+    "GetSurveyReferenceData": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "getSurveyReferenceData",
+        "referenceSurveyId.$": "$.referenceSurveyId"
+      },
+      "ResultPath": "$.referenceDataResult",
+      "Next": "BuildSurveyRequest"
+    },
+    "BuildSurveyRequest": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "buildSurveyRequest",
+        "userRequest.$": "$.userRequest",
+        "referenceDataResult.$": "$.referenceDataResult"
+      },
+      "ResultPath": "$.surveyRequestResult",
+      "Next": "InvokeAgentWithReference"
+    },
+    "InvokeAgentWithReference": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-invoke-agent",
+      "Parameters": {
+        "action": "createSurvey",
+        "userRequest.$": "$.surveyRequestResult.body.userRequest"
+      },
+      "ResultPath": "$.agentResult",
+      "Next": "SaveSurvey"
+    },
+    "InvokeAgent": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-invoke-agent",
+      "Parameters": {
+        "action": "createSurvey",
+        "userRequest.$": "$.userRequest"
+      },
+      "ResultPath": "$.agentResult",
+      "Next": "SaveSurvey"
+    },
+    "SaveSurvey": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "saveSurvey",
+        "agentResult.$": "$.agentResult"
+      },
+      "ResultPath": "$.saveSurveyResult",
+      "End": true
+    }
+  }
+}

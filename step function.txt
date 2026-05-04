@@ -1,0 +1,71 @@
+{
+  "Comment": "Happyloop VOC report creation workflow with mock DB handler",
+  "StartAt": "GetReportBaseData",
+  "States": {
+    "GetReportBaseData": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "getReportBaseData",
+        "surveyId.$": "$.surveyId"
+      },
+      "ResultPath": "$.baseDataResult",
+      "Next": "AnalyzeTextAnswers"
+    },
+    "AnalyzeTextAnswers": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-analyze-survey-text",
+      "Parameters": {
+        "answers.$": "$.baseDataResult.body.textAnswers"
+      },
+      "ResultPath": "$.textAnalysisResult",
+      "Next": "SaveTextAnalysis"
+    },
+    "SaveTextAnalysis": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "saveTextAnalysis",
+        "surveyId.$": "$.surveyId",
+        "textAnalysisResult.$": "$.textAnalysisResult"
+      },
+      "ResultPath": "$.saveTextAnalysisResult",
+      "Next": "BuildReportInput"
+    },
+    "BuildReportInput": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "buildReportInput",
+        "surveyId.$": "$.surveyId",
+        "baseDataResult.$": "$.baseDataResult",
+        "textAnalysisResult.$": "$.textAnalysisResult",
+        "saveTextAnalysisResult.$": "$.saveTextAnalysisResult"
+      },
+      "ResultPath": "$.reportInputResult",
+      "Next": "InvokeAgent"
+    },
+    "InvokeAgent": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-invoke-agent",
+      "Parameters": {
+        "action": "generateReport",
+        "sessionId.$": "States.Format('create-report-{}', $.surveyId)",
+        "reportInput.$": "$.reportInputResult.body.reportInput"
+      },
+      "ResultPath": "$.agentResult",
+      "Next": "SaveReport"
+    },
+    "SaveReport": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-northeast-2:956723945403:function:kbds-happyloop-survey-db-handler",
+      "Parameters": {
+        "action": "saveReport",
+        "surveyId.$": "$.surveyId",
+        "agentResult.$": "$.agentResult"
+      },
+      "ResultPath": "$.saveReportResult",
+      "End": true
+    }
+  }
+}
