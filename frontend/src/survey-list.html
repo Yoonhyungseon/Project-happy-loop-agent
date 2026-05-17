@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>보낸 설문 리스트</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #3b6bef;
+      --blue-hover: #2d55cc;
+      --blue-light: #eef2ff;
+      --gray-bg: #f3f5fb;
+      --gray-border: #e2e6f0;
+      --gray-text: #6b7280;
+      --text: #111827;
+      --text-sub: #374151;
+      --green: #10b981;
+      --green-light: #d1fae5;
+      --orange: #f59e0b;
+      --orange-light: #fef3c7;
+      --red: #ef4444;
+      --red-light: #fee2e2;
+    }
+
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--gray-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 상단 헤더 ── */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      height: 56px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-logo { font-size: 17px; font-weight: 900; color: var(--blue); letter-spacing: -0.5px; }
+    .header-sep  { width: 1px; height: 18px; background: var(--gray-border); }
+    .header-title{ font-size: 14px; font-weight: 700; color: var(--text); }
+
+    .header-step-code {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    .header-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── 스텝 인디케이터 ── */
+    .step-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-item { display: flex; align-items: center; gap: 8px; }
+
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 50%;
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .step-dot.done   { background: var(--green); color: #fff; }
+    .step-dot.active { background: var(--blue); color: #fff; }
+    .step-dot.pending{ background: var(--gray-border); color: var(--gray-text); }
+
+    .step-label { font-size: 12px; font-weight: 700; }
+    .step-label.done   { color: var(--green); }
+    .step-label.active { color: var(--blue); }
+    .step-label.pending{ color: #adb5c8; }
+
+    .step-line { width: 52px; height: 2px; background: var(--gray-border); margin: 0 10px; border-radius: 2px; }
+    .step-line.done { background: var(--green); }
+
+    /* ── 메인 영역 ── */
+    .main-area {
+      flex: 1;
+      padding: 20px 24px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── 패널 ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06), 0 0 0 1px var(--gray-border);
+      overflow: hidden;
+    }
+
+    /* ── 필터 바 ── */
+    .filter-bar {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .search-input {
+      padding: 8px 32px 8px 12px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      width: 180px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input::placeholder { color: #c0c8d8; }
+
+    .search-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-text);
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .btn-filter {
+      padding: 8px 13px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      background: #fafbfd;
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-filter:hover { background: var(--gray-bg); border-color: #b0b8d0; }
+
+    .filter-sep { width: 1px; height: 20px; background: var(--gray-border); margin: 0 2px; }
+
+    .filter-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    .filter-select {
+      padding: 8px 26px 8px 10px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color 0.15s;
+    }
+
+    .filter-select:focus { border-color: var(--blue); }
+    .filter-select.wide { min-width: 180px; }
+
+    /* ── 테이블 ── */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead tr {
+      background: var(--gray-bg);
+      border-bottom: 1px solid var(--gray-border);
+    }
+
+    thead th {
+      padding: 11px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    thead th.center { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f2f8;
+      transition: background 0.12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody tr:hover { background: #f8faff; }
+
+    tbody td {
+      padding: 13px 16px;
+      font-size: 12px;
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    tbody td.center { text-align: center; }
+
+    .td-title {
+      font-weight: 700;
+      color: var(--blue);
+      cursor: pointer;
+    }
+
+    .td-title:hover { text-decoration: underline; }
+
+    .td-dash { color: #c0c8d8; font-weight: 600; }
+
+    /* 상태 배지 */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-badge.active  { background: var(--green-light); color: var(--green); }
+    .status-badge.done    { background: var(--blue-light);  color: var(--blue);  }
+    .status-badge.draft   { background: var(--orange-light); color: var(--orange); }
+    .status-badge.failed  { background: var(--red-light);   color: var(--red);   }
+
+    /* 상세보기 버튼 */
+    .btn-detail {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border: 1px solid var(--blue-light);
+      border-radius: 6px;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-detail:hover { background: #dbe4ff; border-color: var(--blue); }
+
+    /* ── 페이지네이션 ── */
+    .pagination-bar {
+      padding: 14px 20px;
+      border-top: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .page-spacer { flex: 1; }
+
+    .page-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--gray-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+
+    .page-btn:hover { background: var(--gray-bg); }
+
+    .page-btn.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      font-weight: 800;
+      background: #fff;
+    }
+
+    .page-btn.nav { color: var(--gray-text); }
+    .page-btn.nav:hover { background: var(--gray-bg); }
+    .page-btn.nav:disabled { color: #d0d5e0; cursor: not-allowed; background: #fff; }
+
+    .page-size-select {
+      padding: 7px 26px 7px 10px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-sub);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── 상단 헤더 ── -->
+<header class="app-header">
+  <div class="header-left">
+    <span class="header-logo">COP</span>
+    <div class="header-sep"></div>
+    <span class="header-title">보낸 설문 리스트</span>
+    <span class="header-step-code">A-03</span>
+  </div>
+  <div class="header-right">
+    <div class="header-avatar">관</div>
+  </div>
+</header>
+
+<!-- ── 스텝 인디케이터 ── -->
+<div class="step-bar">
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">설문 생성</span>
+  </div>
+  <div class="step-line done"></div>
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">설문 보내기</span>
+  </div>
+  <div class="step-line done"></div>
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">결과 확인</span>
+  </div>
+</div>
+
+<!-- ── 메인 영역 ── -->
+<div class="main-area">
+  <div class="panel">
+
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <input type="text" class="search-input" placeholder="설문명 검색" />
+        <span class="search-icon">🔍</span>
+      </div>
+
+      <button class="btn-filter">
+        <span>▼</span> 필터
+      </button>
+
+      <div class="filter-sep"></div>
+
+      <span class="filter-label">기간</span>
+      <select class="filter-select wide">
+        <option>2025-06-01 ~ 2025-06-30</option>
+        <option>2025-05-01 ~ 2025-05-31</option>
+        <option>전체 기간</option>
+      </select>
+
+      <select class="filter-select">
+        <option>성별 전체</option>
+        <option>남성</option>
+        <option>여성</option>
+      </select>
+
+      <select class="filter-select">
+        <option>대상</option>
+        <option>전체 직원</option>
+        <option>부서별</option>
+        <option>직급별</option>
+      </select>
+
+      <select class="filter-select">
+        <option>채널 전체</option>
+        <option>이메일</option>
+        <option>SMS</option>
+        <option>사내 메신저</option>
+      </select>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>설문명</th>
+            <th>서비스</th>
+            <th>유형</th>
+            <th class="center">문항 수</th>
+            <th class="center">답변 수</th>
+            <th class="center">상태</th>
+            <th class="center">생성일</th>
+            <th class="center">상세보기</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:#adb5c8;">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    <div class="pagination-bar">
+      <button class="page-btn nav" disabled>‹</button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">4</button>
+      <button class="page-btn">5</button>
+      <button class="page-btn nav">›</button>
+      <div class="page-spacer"></div>
+      <select class="page-size-select">
+        <option>20개씩 보기</option>
+        <option>50개씩 보기</option>
+        <option>100개씩 보기</option>
+      </select>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
+
+  async function callAPI(payload) {
+    const res  = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.message || `${res.status}`);
+    return data;
+  }
+
+  /* 상태 배지 */
+  function statusBadge(s) {
+    const map = {
+      ACTIVE:    ['active',  '응답 진행중'],
+      COMPLETED: ['done',    '완료'],
+      DRAFT:     ['draft',   '작성중'],
+      FAILED:    ['failed',  '발송 실패'],
+      CLOSED:    ['done',    '완료'],
+    };
+    const [cls, label] = map[s?.toUpperCase()] || ['draft', s || '작성중'];
+    return `<span class="status-badge ${cls}">${label}</span>`;
+  }
+
+  function fmtDate(d) {
+    if (!d) return '-';
+    return String(d).slice(0, 10);
+  }
+
+  function fmtNum(n) {
+    if (n == null || n === '') return '<span class="td-dash">-</span>';
+    return Number(n).toLocaleString();
+  }
+
+  function fmtPct(n) {
+    if (n == null || n === '') return '<span class="td-dash">-</span>';
+    return (Math.round(Number(n) * 10) / 10) + '%';
+  }
+
+  /* 테이블 렌더링 */
+  function renderTable(surveys) {
+    const tbody = document.querySelector('tbody');
+    if (!surveys || surveys.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:#adb5c8;">설문이 없습니다.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = surveys.map(s => {
+      const sid       = s.surveyId || s.survey_id || '';
+      const title     = s.title || s.surveyTitle || s.name || sid;
+      const service   = s.service || '-';
+      const type      = s.surveyType || s.survey_type || '-';
+      const qCount    = fmtNum(s.questionCount ?? s.question_count);
+      const resp      = fmtNum(s.responseCount ?? s.response_count);
+      const badge     = statusBadge(s.status);
+      const createdAt = fmtDate(s.createdAt || s.created_at);
+      return `
+        <tr class="row-link" data-sid="${sid}" style="cursor:pointer;">
+          <td class="td-title">${title}</td>
+          <td>${service}</td>
+          <td>${type}</td>
+          <td class="center">${qCount}</td>
+          <td class="center">${resp}</td>
+          <td class="center">${badge}</td>
+          <td class="center">${createdAt}</td>
+          <td class="center"><button class="btn-detail" onclick="goDetail('${sid}',event)">상세보기</button></td>
+        </tr>`;
+    }).join('');
+
+    /* 행 클릭 → 개요 화면 */
+    document.querySelectorAll('.row-link').forEach(tr => {
+      tr.addEventListener('click', () => goDetail(tr.dataset.sid));
+    });
+  }
+
+  function goDetail(sid, e) {
+    if (e) e.stopPropagation();
+    if (!sid) return;
+    location.href = `survey-overview.html?surveyId=${sid}`;
+  }
+
+  /* 로딩 */
+  function setLoading(on) {
+    const tbody = document.querySelector('tbody');
+    if (on) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:#adb5c8;">불러오는 중...</td></tr>`;
+  }
+
+  /* 검색 필터 */
+  let allSurveys = [];
+  document.querySelector('.search-input').addEventListener('input', function () {
+    const kw = this.value.trim().toLowerCase();
+    const filtered = kw
+      ? allSurveys.filter(s => (s.title || s.surveyTitle || s.surveyId || '').toLowerCase().includes(kw))
+      : allSurveys;
+    renderTable(filtered);
+  });
+
+  /* 페이지 버튼 */
+  document.querySelectorAll('.page-btn:not(.nav)').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.page-btn:not(.nav)').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  /* 초기 로드 */
+  (async () => {
+    setLoading(true);
+    try {
+      const data  = await callAPI({ action: 'listSurveys', limit: 20 });
+      allSurveys  = data?.result?.surveys || [];
+      renderTable(allSurveys);
+    } catch (e) {
+      document.querySelector('tbody').innerHTML =
+        `<tr><td colspan="8" style="text-align:center;padding:32px;color:#ef4444;">불러오기 실패: ${e.message}</td></tr>`;
+    }
+  })();
+</script>
+
+</body>
+</html>

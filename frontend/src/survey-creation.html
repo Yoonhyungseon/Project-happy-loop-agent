@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>설문 생성하기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #3b6bef;
+      --blue-hover: #2d55cc;
+      --blue-light: #eef2ff;
+      --gray-bg: #f3f5fb;
+      --gray-border: #e2e6f0;
+      --gray-text: #6b7280;
+      --text: #111827;
+      --text-sub: #374151;
+    }
+
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--gray-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 상단 헤더 ── */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      height: 56px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-logo {
+      font-size: 17px;
+      font-weight: 900;
+      color: var(--blue);
+      letter-spacing: -0.5px;
+    }
+
+    .header-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--gray-border);
+    }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .header-step-code {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 스텝 인디케이터 ── */
+    .step-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-shrink: 0;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-dot.active   { background: var(--blue); color: #fff; }
+    .step-dot.pending  { background: var(--gray-border); color: var(--gray-text); }
+
+    .step-label {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .step-label.active  { color: var(--blue); }
+    .step-label.pending { color: #adb5c8; }
+
+    .step-line {
+      width: 52px;
+      height: 2px;
+      background: var(--gray-border);
+      margin: 0 10px;
+      border-radius: 2px;
+    }
+
+    /* ── 메인 3-패널 영역 ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      padding: 20px 24px;
+      gap: 16px;
+      overflow: hidden;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      align-items: flex-start;
+    }
+
+    /* ── 패널 공통 ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06), 0 0 0 1px var(--gray-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-head h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .panel-head .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+
+    .panel-icon {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .panel-body {
+      padding: 18px 20px;
+      overflow-y: auto;
+      flex: 1;
+      max-height: calc(100vh - 180px);
+    }
+
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: #d4d8e6; border-radius: 4px; }
+
+    .panel-foot {
+      padding: 14px 20px;
+      border-top: 1px solid var(--gray-border);
+      flex-shrink: 0;
+    }
+
+    /* ── 패널 1: 입력 폼 ── */
+    .panel-form { width: 272px; flex-shrink: 0; }
+
+    .form-group { margin-bottom: 14px; }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 5px;
+      letter-spacing: 0.1px;
+    }
+
+    .required { color: #ef4444; margin-left: 2px; }
+
+    .form-input,
+    .form-select {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .form-input::placeholder { color: #c0c8d8; font-size: 12px; }
+
+    .form-textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      line-height: 1.6;
+    }
+
+    .form-textarea::placeholder { color: #c0c8d8; font-size: 12px; }
+
+    .form-textarea:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .form-select {
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 26px;
+    }
+
+    .form-divider {
+      height: 1px;
+      background: var(--gray-border);
+      margin: 16px 0;
+    }
+
+    /* 토글 */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .toggle-lhs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1.5px solid #bbb;
+      color: #bbb;
+      font-size: 9px;
+      font-style: normal;
+      cursor: pointer;
+    }
+
+    .toggle-rhs {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .switch {
+      position: relative;
+      width: 38px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .switch input { display: none; }
+
+    .sw-track {
+      position: absolute;
+      inset: 0;
+      background: #d0d5e0;
+      border-radius: 10px;
+      transition: background 0.2s;
+    }
+
+    .sw-track.on { background: var(--blue); }
+
+    .sw-thumb {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: left 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .sw-track.on .sw-thumb { left: 21px; }
+
+    .toggle-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .btn-generate {
+      width: 100%;
+      padding: 11px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-bottom: 8px;
+    }
+
+    .btn-generate:hover { background: var(--blue-hover); }
+    .btn-generate:active { transform: scale(0.98); }
+
+    .btn-reset {
+      width: 100%;
+      padding: 9px;
+      background: transparent;
+      color: var(--gray-text);
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-reset:hover { background: var(--gray-bg); }
+
+    /* ── 패널 2: AI 결과 ── */
+    .panel-ai { flex: 1; min-width: 0; }
+
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .ai-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .ai-sum-card {
+      background: var(--blue-light);
+      border-radius: 10px;
+      padding: 13px 15px;
+    }
+
+    .ai-sum-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #8898c4;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+
+    .ai-sum-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .ai-sum-value.highlight { color: var(--blue); font-size: 18px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gray-border);
+    }
+
+    .ai-q-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+
+    .ai-q-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 13px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      cursor: default;
+    }
+
+    .ai-q-row:hover {
+      border-color: var(--blue);
+      background: #f8faff;
+      box-shadow: 0 2px 8px rgba(59,107,239,0.08);
+    }
+
+    .ai-q-num {
+      min-width: 20px;
+      height: 20px;
+      background: var(--blue-light);
+      color: var(--blue);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ai-q-text {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .ai-q-type {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--blue);
+      background: var(--blue-light);
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .ai-meta-box {
+      background: #f8faff;
+      border-radius: 10px;
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ai-meta-item { display: flex; align-items: flex-start; gap: 8px; }
+
+    .ai-meta-key {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space: nowrap;
+      padding-top: 1px;
+    }
+
+    .ai-meta-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .tag {
+      display: inline-block;
+      background: var(--blue-light);
+      color: var(--blue);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .ai-foot-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-cancel {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--gray-text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-cancel:hover { background: var(--gray-bg); }
+
+    .btn-save {
+      flex: 2;
+      padding: 10px;
+      border: none;
+      border-radius: 9px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-save:hover { background: var(--blue-hover); }
+
+    /* ── 패널 3: 문항 편집 ── */
+    .panel-edit { width: 288px; flex-shrink: 0; }
+
+    .edit-hint {
+      font-size: 11px;
+      color: var(--gray-text);
+      margin-bottom: 14px;
+      line-height: 1.5;
+      padding: 9px 12px;
+      background: var(--gray-bg);
+      border-radius: 8px;
+    }
+
+    .edit-q-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f2f8;
+    }
+
+    .edit-q-item:last-of-type { border-bottom: none; }
+
+    .edit-q-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .edit-q-num {
+      min-width: 20px;
+      height: 20px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .edit-q-text {
+      font-size: 11px;
+      color: var(--text-sub);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .edit-q-select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #d0d6e8;
+      border-radius: 7px;
+      font-size: 11px;
+      color: var(--text-sub);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      padding-right: 24px;
+      transition: border-color 0.15s;
+    }
+
+    .edit-q-select:focus { border-color: var(--blue); }
+
+    .btn-add-q {
+      width: 100%;
+      padding: 10px;
+      border: 2px dashed #c5cde8;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-add-q:hover { background: var(--blue-light); border-color: var(--blue); }
+  </style>
+</head>
+<body>
+
+<!-- ── 상단 헤더 ── -->
+<header class="app-header">
+  <div class="header-left">
+    <span class="header-logo">COP</span>
+    <div class="header-sep"></div>
+    <span class="header-title">설문 생성하기</span>
+    <span class="header-step-code">A-00</span>
+  </div>
+  <div class="header-right">
+    <div class="header-avatar">관</div>
+  </div>
+</header>
+
+<!-- ── 스텝 인디케이터 ── -->
+<div class="step-bar">
+  <div class="step-item">
+    <div class="step-dot active">1</div>
+    <span class="step-label active">설문 생성</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step-item">
+    <div class="step-dot pending">2</div>
+    <span class="step-label pending">AI 검토</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step-item">
+    <div class="step-dot pending">3</div>
+    <span class="step-label pending">설문 발송</span>
+  </div>
+</div>
+
+<!-- ── 메인 3-패널 ── -->
+<div class="main-area">
+
+  <!-- 패널 1: 입력 폼 -->
+  <div class="panel panel-form">
+    <div class="panel-head">
+      <span class="panel-icon">📋</span>
+      <h3>설문 생성 요청</h3>
+    </div>
+    <div class="panel-body">
+
+      <div class="form-group">
+        <label class="form-label">어떤 설문을 만들까요?<span class="required">*</span></label>
+        <textarea id="survey-prompt" class="form-textarea" rows="6" placeholder="예) 스타뱅킹 모바일 앱 이용 고객 대상 VOC 설문지를 만들어줘. 5점 척도 6문항과 주관식 2문항으로 구성해줘."></textarea>
+      </div>
+
+      <button class="btn-generate" onclick="handleGenerate()">✦ AI로 설문 생성하기</button>
+      <button class="btn-reset" onclick="handleReset()">초기화</button>
+
+    </div>
+  </div>
+
+  <!-- 패널 2: AI 생성 결과 -->
+  <div class="panel panel-ai">
+    <div class="panel-head">
+      <span class="ai-badge">✦ AI 생성 결과</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="ai-summary-grid">
+        <div class="ai-sum-card">
+          <div class="ai-sum-label">추천 설문 제목</div>
+          <div class="ai-sum-value">복지관리 서비스 만족도 및 개선 의견 조사</div>
+        </div>
+        <div class="ai-sum-card">
+          <div class="ai-sum-label">예상 소요 시간</div>
+          <div class="ai-sum-value highlight">약 3분</div>
+        </div>
+      </div>
+
+      <div class="section-title">생성된 문항 (일부)</div>
+
+      <div class="ai-q-list">
+        <div class="ai-q-row">
+          <div class="ai-q-num">1</div>
+          <div class="ai-q-text">복지관의 사용 만족도는 어떠신가요?</div>
+          <div class="ai-q-type">척도형</div>
+        </div>
+        <div class="ai-q-row">
+          <div class="ai-q-num">2</div>
+          <div class="ai-q-text">복지관을 얼마나 자주 이용하시나요?</div>
+          <div class="ai-q-type">단답형</div>
+        </div>
+        <div class="ai-q-row">
+          <div class="ai-q-num">3</div>
+          <div class="ai-q-text">가장 만족스러운 기능은 무엇인가요?</div>
+          <div class="ai-q-type">필수형</div>
+        </div>
+        <div class="ai-q-row">
+          <div class="ai-q-num">4</div>
+          <div class="ai-q-text">개선이 필요한 기능은 무엇인가요?</div>
+          <div class="ai-q-type">복단형</div>
+        </div>
+      </div>
+
+      <div class="section-title">AI 추천 메타 정보</div>
+
+      <div class="ai-meta-box">
+        <div class="ai-meta-item">
+          <span class="ai-meta-key">문항 유형</span>
+          <div class="ai-meta-tags">
+            <span class="tag">단답선택</span>
+            <span class="tag">다중선택</span>
+            <span class="tag">단답형</span>
+            <span class="tag">척도형</span>
+          </div>
+        </div>
+        <div class="ai-meta-item">
+          <span class="ai-meta-key">VOC 제안</span>
+          <div class="ai-meta-tags">
+            <span class="tag">조합 (권장)</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="panel-foot">
+      <div class="ai-foot-row">
+        <button class="btn-cancel">취소</button>
+        <button class="btn-save">저장 후 설문 보내기로 이동 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 패널 3: 문항 편집 -->
+  <div class="panel panel-edit">
+    <div class="panel-head">
+      <span class="panel-icon">✏️</span>
+      <h3>문항 편집</h3>
+      <span class="badge">직원 작성/수정</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="edit-hint">
+        AI가 생성한 문항의 유형을 변경하거나 새 문항을 추가할 수 있습니다.
+      </div>
+
+      <div class="edit-q-item">
+        <div class="edit-q-header">
+          <div class="edit-q-num">1</div>
+          <div class="edit-q-text">복지관의 사용 만족도는 어떠신가요?</div>
+        </div>
+        <select class="edit-q-select">
+          <option selected>5점 척도</option>
+          <option>단일 선택</option>
+          <option>단답형</option>
+          <option>다중 선택</option>
+        </select>
+      </div>
+
+      <div class="edit-q-item">
+        <div class="edit-q-header">
+          <div class="edit-q-num">2</div>
+          <div class="edit-q-text">복지관을 얼마나 자주 이용하시나요?</div>
+        </div>
+        <select class="edit-q-select">
+          <option>5점 척도</option>
+          <option selected>단일 선택</option>
+          <option>단답형</option>
+          <option>다중 선택</option>
+        </select>
+      </div>
+
+      <div class="edit-q-item">
+        <div class="edit-q-header">
+          <div class="edit-q-num">3</div>
+          <div class="edit-q-text">가장 만족스러운 기능은 무엇인가요?</div>
+        </div>
+        <select class="edit-q-select">
+          <option>5점 척도</option>
+          <option>단일 선택</option>
+          <option selected>단답형</option>
+          <option>다중 선택</option>
+        </select>
+      </div>
+
+      <div class="edit-q-item">
+        <div class="edit-q-header">
+          <div class="edit-q-num">4</div>
+          <div class="edit-q-text">개선이 필요한 기능은 무엇인가요?</div>
+        </div>
+        <select class="edit-q-select">
+          <option>5점 척도</option>
+          <option>단일 선택</option>
+          <option selected>단답형</option>
+          <option>다중 선택</option>
+        </select>
+      </div>
+
+      <button class="btn-add-q">+ 문항 추가</button>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API_URL = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
+
+  async function callAPI(payload) {
+    const res  = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.message || `${res.status}`);
+    return data;
+  }
+
+  /* Step Functions 실행 완료까지 폴링 (최대 90초) */
+  async function pollUntilDone(executionArn, onTick) {
+    for (let i = 0; i < 45; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const data = await callAPI({ action: 'getExecutionStatus', executionArn });
+      console.log(`[poll ${i}] status=${data.status}`, data);
+      onTick && onTick(i, data);
+      if (data.status === 'SUCCEEDED' || data.output) return data;
+      if (data.status === 'FAILED') throw new Error('설문 생성에 실패했습니다.');
+    }
+    throw new Error('시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+  }
+
+  /* AI 생성 결과 패널 렌더링 */
+  function renderAIResult(survey) {
+    if (!survey) return;
+    const title = survey.title || survey.surveyTitle || '생성된 설문';
+    document.querySelector('.ai-sum-card:first-child .ai-sum-value').textContent = title;
+
+    const qs     = survey.questions || [];
+    const sc5    = qs.filter(q => q.type === 'SC5').length;
+    const others = qs.length - sc5;
+    document.querySelector('.ai-sum-card:last-child .ai-sum-value').textContent =
+      `약 ${Math.ceil(qs.length * 0.35)}분`;
+
+    /* 문항 목록 */
+    const listEl = document.querySelector('.ai-q-list');
+    if (listEl) {
+      listEl.innerHTML = qs.map((q, i) => {
+        const text  = q.text || q.question || q.content || q.code;
+        const badge = q.type === 'SC5' ? '척도형' : '단답형';
+        return `
+          <div class="ai-q-row">
+            <div class="ai-q-num">${i + 1}</div>
+            <div class="ai-q-text">${text}</div>
+            <div class="ai-q-type">${badge}</div>
+          </div>`;
+      }).join('');
+    }
+
+    /* 편집 패널 */
+    const editList = document.querySelector('.panel-edit .panel-body');
+    if (editList) {
+      const hint = editList.querySelector('.edit-hint');
+      const addBtn = editList.querySelector('.btn-add-q');
+      editList.querySelectorAll('.edit-q-item').forEach(el => el.remove());
+      qs.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = 'edit-q-item';
+        div.innerHTML = `
+          <div class="edit-q-header">
+            <div class="edit-q-num">${i + 1}</div>
+            <div class="edit-q-text">${q.text || q.question || q.code}</div>
+          </div>
+          <select class="edit-q-select">
+            <option ${q.type==='SC5'?'selected':''}>5점 척도</option>
+            <option ${q.type!=='SC5'?'selected':''}>단일 선택</option>
+            <option>단답형</option>
+            <option>다중 선택</option>
+          </select>`;
+        editList.insertBefore(div, addBtn);
+      });
+    }
+
+    /* 저장 버튼에 surveyId 연결 */
+    const saveBtn = document.querySelector('.btn-save');
+    if (saveBtn && survey.surveyId) {
+      saveBtn.onclick = () => {
+        location.href = `survey-sending.html?surveyId=${survey.surveyId}`;
+      };
+    }
+  }
+
+  /* 생성 버튼 */
+  async function handleGenerate() {
+    const userRequest = document.getElementById('survey-prompt')?.value.trim();
+
+    if (!userRequest) {
+      alert('설문 생성 요청을 입력해주세요.');
+      return;
+    }
+
+    const btn = document.querySelector('.btn-generate');
+    btn.textContent = 'AI 생성 중...';
+    btn.disabled = true;
+
+    /* AI 요약 카드 로딩 표시 */
+    document.querySelector('.ai-sum-card:first-child .ai-sum-value').textContent = '생성 중…';
+    document.querySelector('.ai-sum-card:last-child .ai-sum-value').textContent  = '…';
+    const listEl = document.querySelector('.ai-q-list');
+    if (listEl) listEl.innerHTML = '<div style="padding:16px;color:#adb5c8;font-size:12px;">AI가 문항을 생성하고 있습니다...</div>';
+
+    try {
+      /* 1. 설문 생성 요청 */
+      const createRes = await callAPI({ action: 'createSurvey', userRequest });
+      const arn = createRes.executionArn;
+      if (!arn) throw new Error('실행 ARN을 받지 못했습니다.');
+
+      /* 2. 완료까지 폴링 */
+      let dots = 0;
+      const execData = await pollUntilDone(arn, (tick) => {
+        dots = (dots + 1) % 4;
+        btn.textContent = 'AI 생성 중' + '.'.repeat(dots + 1);
+      });
+
+      /* 3. surveyId 추출 → 상세 조회 */
+      /* Step Functions output이 JSON 문자열로 오는 경우 파싱 */
+      const rawOut = execData.output;
+      const output = typeof rawOut === 'string' ? JSON.parse(rawOut) : (rawOut || {});
+      console.log('[output parsed]', output);
+
+      const sid = output?.saveSurveyResult?.body?.surveyId ||
+                  output?.surveyId;
+      if (!sid) throw new Error(`생성된 설문 ID를 찾을 수 없습니다. (output: ${JSON.stringify(output)})`);
+
+      const surveyRes = await callAPI({ action: 'getSurvey', surveyId: sid });
+      const survey    = surveyRes?.result?.survey;
+
+      renderAIResult(survey);
+      btn.textContent = '재생성하기';
+      btn.disabled    = false;
+    } catch (e) {
+      btn.textContent = '생성하기';
+      btn.disabled    = false;
+      if (listEl) listEl.innerHTML = `<div style="padding:16px;color:#ef4444;font-size:12px;">오류: ${e.message}</div>`;
+    }
+  }
+
+  function handleReset() {
+    if (confirm('입력한 내용을 초기화하시겠습니까?')) {
+      const prompt = document.getElementById('survey-prompt');
+      if (prompt) prompt.value = '';
+    }
+  }
+</script>
+
+</body>
+</html>

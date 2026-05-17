@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>설문 응답 개요</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #3b6bef;
+      --blue-hover: #2d55cc;
+      --blue-light: #eef2ff;
+      --gray-bg: #f3f5fb;
+      --gray-border: #e2e6f0;
+      --gray-text: #6b7280;
+      --text: #111827;
+      --text-sub: #374151;
+      --green: #10b981;
+      --green-light: #d1fae5;
+    }
+
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--gray-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 상단 헤더 ── */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      height: 56px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 14px; }
+
+    .header-logo { font-size: 17px; font-weight: 900; color: var(--blue); letter-spacing: -0.5px; }
+
+    .header-sep { width: 1px; height: 18px; background: var(--gray-border); }
+
+    .header-title { font-size: 14px; font-weight: 700; color: var(--text); }
+
+    .header-step-code {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    .header-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--blue-light); color: var(--blue);
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── 스텝 인디케이터 ── */
+    .step-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-item { display: flex; align-items: center; gap: 8px; }
+
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 50%;
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .step-dot.done   { background: var(--green); color: #fff; }
+    .step-dot.active { background: var(--blue); color: #fff; }
+    .step-dot.pending{ background: var(--gray-border); color: var(--gray-text); }
+
+    .step-label { font-size: 12px; font-weight: 700; }
+    .step-label.done   { color: var(--green); }
+    .step-label.active { color: var(--blue); }
+    .step-label.pending{ color: #adb5c8; }
+
+    .step-line { width: 52px; height: 2px; background: var(--gray-border); margin: 0 10px; border-radius: 2px; }
+    .step-line.done { background: var(--green); }
+
+    /* ── 메인 영역 ── */
+    .main-area {
+      flex: 1;
+      padding: 20px 24px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── 패널 공통 ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06), 0 0 0 1px var(--gray-border);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-head h3 { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+
+    .panel-icon { font-size: 15px; line-height: 1; }
+
+    /* ── 필터 바 ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    .filter-select {
+      padding: 8px 28px 8px 12px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      transition: border-color 0.15s;
+      min-width: 220px;
+    }
+
+    .filter-select:focus { border-color: var(--blue); }
+
+    .filter-sep { width: 1px; height: 20px; background: var(--gray-border); margin: 0 4px; }
+
+    .filter-spacer { flex: 1; }
+
+    .btn-download {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s;
+    }
+
+    .btn-download:hover { background: var(--blue-hover); }
+
+    /* ── 통계 카드 그리드 ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      border-bottom: 1px solid var(--gray-border);
+    }
+
+    .stat-card {
+      padding: 16px 20px;
+      border-right: 1px solid var(--gray-border);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .stat-card:last-child { border-right: none; }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .stat-value.green { color: var(--green); }
+    .stat-value.medium { font-size: 18px; }
+
+    /* ── 차트 그리드 ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 0;
+      border-bottom: 1px solid var(--gray-border);
+    }
+
+    .chart-section {
+      padding: 18px 20px;
+    }
+
+    .chart-section + .chart-section {
+      border-left: 1px solid var(--gray-border);
+    }
+
+    .chart-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    /* 라인 차트 */
+    .line-chart-wrap { width: 100%; }
+
+    /* 도넛 차트 */
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .donut-svg { flex-shrink: 0; }
+
+    .donut-legend { display: flex; flex-direction: column; gap: 10px; }
+
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .legend-dot.blue  { background: var(--blue); }
+    .legend-dot.green { background: var(--green); }
+    .legend-dot.gray  { background: #c8cedc; }
+
+    .legend-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      flex: 1;
+    }
+
+    .legend-pct {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    /* ── 하단 그리드 ── */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    .bottom-section { padding: 18px 20px; }
+    .bottom-section + .bottom-section { border-left: 1px solid var(--gray-border); }
+
+    .bottom-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    /* 문항 결과 요약 */
+    .q-result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .q-result-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      flex: 1;
+    }
+
+    .stars { display: flex; gap: 2px; }
+
+    .star { font-size: 14px; }
+
+    .q-result-score {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      width: 40px;
+      text-align: right;
+    }
+
+    .btn-detail {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .btn-detail button {
+      padding: 7px 16px;
+      border: 1px solid var(--gray-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-detail button:hover { background: var(--blue-light); border-color: var(--blue); }
+
+    /* VOC 미리보기 */
+    .voc-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+
+    .voc-item {
+      font-size: 12px;
+      color: var(--text-sub);
+      line-height: 1.5;
+      padding-left: 12px;
+      position: relative;
+    }
+
+    .voc-item::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .voc-footer { display: flex; justify-content: flex-end; }
+
+    .btn-voc-all {
+      padding: 7px 16px;
+      border: 1px solid var(--gray-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-voc-all:hover { background: var(--blue-light); border-color: var(--blue); }
+
+    /* ── 설문 질문 목록 ── */
+    .q-list-section {
+      border-top: 1px solid var(--gray-border);
+    }
+
+    .q-list-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .q-list-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .q-list-count {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--blue);
+      background: var(--blue-light);
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    .q-list-body {
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .q-list-body::-webkit-scrollbar { width: 4px; }
+    .q-list-body::-webkit-scrollbar-thumb { background: #d4d8e6; border-radius: 4px; }
+
+    .q-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      padding: 11px 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .q-item:hover {
+      border-color: var(--blue);
+      background: #f8faff;
+      box-shadow: 0 2px 8px rgba(59,107,239,0.08);
+    }
+
+    .q-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .q-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .q-tags {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .q-tag {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.2px;
+    }
+
+    .q-tag-sc  { background: var(--blue-light); color: var(--blue); }
+    .q-tag-txt { background: #f0fdf4; color: #059669; }
+    .q-tag-cat { background: #f5f6fa; color: var(--gray-text); }
+
+    .q-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .q-scale {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-top: 5px;
+    }
+
+    .q-list-empty {
+      padding: 28px 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--gray-text);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── 상단 헤더 ── -->
+<header class="app-header">
+  <div class="header-left">
+    <span class="header-logo">COP</span>
+    <div class="header-sep"></div>
+    <span class="header-title">설문 응답 개요</span>
+    <span class="header-step-code">A-02</span>
+  </div>
+  <div class="header-right">
+    <div class="header-avatar">관</div>
+  </div>
+</header>
+
+<!-- ── 스텝 인디케이터 ── -->
+<div class="step-bar">
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">설문 생성</span>
+  </div>
+  <div class="step-line done"></div>
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">설문 보내기</span>
+  </div>
+  <div class="step-line done"></div>
+  <div class="step-item">
+    <div class="step-dot active">3</div>
+    <span class="step-label active">결과 확인</span>
+  </div>
+</div>
+
+<!-- ── 메인 영역 ── -->
+<div class="main-area">
+
+  <div class="panel">
+
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+      <span class="filter-label">설문 선택</span>
+      <select class="filter-select">
+        <option>2025 상반기 직원 만족도 조사</option>
+        <option>2024 하반기 직원 만족도 조사</option>
+        <option>2025 복지제도 개선 설문</option>
+      </select>
+      <div class="filter-sep"></div>
+      <span class="filter-label">기간</span>
+      <select class="filter-select" style="min-width:190px;">
+        <option>2025-06-01 ~ 2025-06-30</option>
+        <option>2025-05-01 ~ 2025-05-31</option>
+        <option>전체 기간</option>
+      </select>
+      <div class="filter-spacer"></div>
+      <button class="btn-download">⬇ 다운로드</button>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">전체 응답자</div>
+        <div class="stat-value">1,245</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">응답 완료</div>
+        <div class="stat-value">876</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">완료율</div>
+        <div class="stat-value green">70.4%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">미완료</div>
+        <div class="stat-value">369</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">평균 완료 시간</div>
+        <div class="stat-value medium">2분 34초</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">VOC 참여율</div>
+        <div class="stat-value">18.2%</div>
+      </div>
+    </div>
+
+    <!-- 차트 -->
+    <div class="chart-grid">
+
+      <!-- 라인 차트 -->
+      <div class="chart-section">
+        <div class="chart-title">일자별 응답 추이</div>
+        <div class="line-chart-wrap">
+          <svg viewBox="0 0 520 150" width="100%" height="150" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#3b6bef" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="#3b6bef" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- Y축 격자 -->
+            <line x1="40" y1="10"  x2="510" y2="10"  stroke="#e2e6f0" stroke-width="1"/>
+            <line x1="40" y1="44"  x2="510" y2="44"  stroke="#e2e6f0" stroke-width="1"/>
+            <line x1="40" y1="77"  x2="510" y2="77"  stroke="#e2e6f0" stroke-width="1"/>
+            <line x1="40" y1="110" x2="510" y2="110" stroke="#e2e6f0" stroke-width="1"/>
+            <!-- Y축 레이블 -->
+            <text x="32" y="14"  text-anchor="end" font-size="10" fill="#adb5c8">150</text>
+            <text x="32" y="48"  text-anchor="end" font-size="10" fill="#adb5c8">100</text>
+            <text x="32" y="81"  text-anchor="end" font-size="10" fill="#adb5c8">50</text>
+            <text x="32" y="114" text-anchor="end" font-size="10" fill="#adb5c8">0</text>
+            <!-- 채우기 영역 -->
+            <path d="M 40,101 L 98,71 L 156,78 L 214,57 L 272,18 L 330,38 L 388,46 L 446,64 L 510,28 L 510,110 L 40,110 Z"
+                  fill="url(#lineGrad)"/>
+            <!-- 라인 -->
+            <polyline
+              points="40,101 98,71 156,78 214,57 272,18 330,38 388,46 446,64 510,28"
+              fill="none" stroke="#3b6bef" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <!-- 데이터 포인트 -->
+            <circle cx="40"  cy="101" r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="98"  cy="71"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="156" cy="78"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="214" cy="57"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="272" cy="18"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="330" cy="38"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="388" cy="46"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="446" cy="64"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <circle cx="510" cy="28"  r="3.5" fill="#3b6bef" stroke="#fff" stroke-width="2"/>
+            <!-- X축 레이블 -->
+            <text x="40"  y="128" text-anchor="middle" font-size="10" fill="#adb5c8">05-01</text>
+            <text x="156" y="128" text-anchor="middle" font-size="10" fill="#adb5c8">05-08</text>
+            <text x="272" y="128" text-anchor="middle" font-size="10" fill="#adb5c8">05-15</text>
+            <text x="388" y="128" text-anchor="middle" font-size="10" fill="#adb5c8">05-22</text>
+            <text x="510" y="128" text-anchor="middle" font-size="10" fill="#adb5c8">05-29</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 도넛 차트 -->
+      <div class="chart-section">
+        <div class="chart-title">응답 상태 분포</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" width="130" height="130" viewBox="0 0 130 130">
+            <!-- 배경 원 -->
+            <circle cx="65" cy="65" r="48" fill="none" stroke="#f0f2f7" stroke-width="22"/>
+            <!-- 완료 70.4% -->
+            <circle cx="65" cy="65" r="48"
+              fill="none"
+              stroke="#3b6bef"
+              stroke-width="22"
+              stroke-dasharray="212.4 301.6"
+              stroke-dashoffset="0"
+              transform="rotate(-90 65 65)"/>
+            <!-- 진행중 12.3% -->
+            <circle cx="65" cy="65" r="48"
+              fill="none"
+              stroke="#10b981"
+              stroke-width="22"
+              stroke-dasharray="37.1 301.6"
+              stroke-dashoffset="-212.4"
+              transform="rotate(-90 65 65)"/>
+            <!-- 이탈됨 17.3% -->
+            <circle cx="65" cy="65" r="48"
+              fill="none"
+              stroke="#c8cedc"
+              stroke-width="22"
+              stroke-dasharray="52.2 301.6"
+              stroke-dashoffset="-249.5"
+              transform="rotate(-90 65 65)"/>
+            <!-- 중앙 텍스트 -->
+            <text x="65" y="61" text-anchor="middle" font-size="15" font-weight="800" fill="#3b6bef">70.4%</text>
+            <text x="65" y="75" text-anchor="middle" font-size="9" fill="#6b7280">완료율</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <div class="legend-dot blue"></div>
+              <span class="legend-name">완료</span>
+              <span class="legend-pct">70.4%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot green"></div>
+              <span class="legend-name">진행중</span>
+              <span class="legend-pct">12.3%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot gray"></div>
+              <span class="legend-name">이탈됨</span>
+              <span class="legend-pct">17.3%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 설문 질문 목록 -->
+    <div class="q-list-section">
+      <div class="q-list-head">
+        <span class="q-list-title">설문 질문 목록</span>
+        <span class="q-list-count" id="qCount">0 문항</span>
+      </div>
+      <div class="q-list-body" id="questionList">
+        <div class="q-item">
+          <div class="q-num">Q1</div>
+          <div class="q-meta">
+            <div class="q-tags">
+              <span class="q-tag q-tag-sc">척도형</span>
+              <span class="q-tag q-tag-cat">조직문화</span>
+            </div>
+            <div class="q-text">현재 조직의 문화에 얼마나 만족하십니까?</div>
+          </div>
+          <div class="q-scale">1 ~ 5점</div>
+        </div>
+        <div class="q-item">
+          <div class="q-num">Q2</div>
+          <div class="q-meta">
+            <div class="q-tags">
+              <span class="q-tag q-tag-sc">척도형</span>
+              <span class="q-tag q-tag-cat">업무환경</span>
+            </div>
+            <div class="q-text">업무 환경 및 시설에 얼마나 만족하십니까?</div>
+          </div>
+          <div class="q-scale">1 ~ 5점</div>
+        </div>
+        <div class="q-item">
+          <div class="q-num">Q3</div>
+          <div class="q-meta">
+            <div class="q-tags">
+              <span class="q-tag q-tag-txt">주관식</span>
+              <span class="q-tag q-tag-cat">기타의견</span>
+            </div>
+            <div class="q-text">개선이 필요하다고 생각하는 점을 자유롭게 작성해주세요.</div>
+          </div>
+          <div class="q-scale">텍스트</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 하단 섹션 -->
+    <div class="bottom-grid">
+
+      <!-- 주요 문항 결과 요약 -->
+      <div class="bottom-section">
+        <div class="bottom-title">주요 문항 결과 요약</div>
+
+        <div class="q-result-item">
+          <div class="q-result-name">조직문화 만족도 평균</div>
+          <div class="stars">
+            <span class="star">⭐</span><span class="star">⭐</span>
+            <span class="star">⭐</span><span class="star">⭐</span>
+            <span class="star" style="color:#d1d5e0;filter:grayscale(1);">⭐</span>
+          </div>
+          <div class="q-result-score">4.1 / 5</div>
+        </div>
+
+        <div class="q-result-item">
+          <div class="q-result-name">업무환경 만족도 평균</div>
+          <div class="stars">
+            <span class="star">⭐</span><span class="star">⭐</span>
+            <span class="star">⭐</span><span class="star">⭐</span>
+            <span class="star" style="color:#d1d5e0;filter:grayscale(1);">⭐</span>
+          </div>
+          <div class="q-result-score">3.8 / 5</div>
+        </div>
+
+        <div class="btn-detail">
+          <button>지세히 보기</button>
+        </div>
+      </div>
+
+      <!-- 최근 VOC 미리보기 -->
+      <div class="bottom-section">
+        <div class="bottom-title">
+          최근 VOC 미리보기
+          <span style="font-size:11px;font-weight:600;color:var(--gray-text);margin-left:4px;">(총 169건)</span>
+        </div>
+
+        <div class="voc-list">
+          <div class="voc-item">업무 프로세스 단순화가 필요합니다.</div>
+          <div class="voc-item">복지몰 혜택이 더 다양했으면 합니다.</div>
+          <div class="voc-item">사내 소통 채널이 개선되었으면 좋겠습니다.</div>
+        </div>
+
+        <div class="voc-footer">
+          <button class="btn-voc-all">전체 보기</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  const API_URL = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
+
+  async function callAPI(payload) {
+    const res  = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.message || `${res.status}`);
+    return data;
+  }
+
+  /* URL 파라미터로 초기 surveyId 결정 */
+  const initSurveyId = new URLSearchParams(location.search).get('surveyId') || '';
+
+  /* 통계 카드 업데이트 */
+  function updateStats(report) {
+    if (!report) return;
+    const r = report;
+    const setValue = (sel, val, cls) => {
+      const el = document.querySelector(sel);
+      if (el) { el.textContent = val; if (cls) el.className = `stat-value ${cls}`; }
+    };
+
+    /* 리포트 구조에 따라 필드명이 다를 수 있으므로 여러 경로 시도 */
+    const total    = r.totalCount     ?? r.total_count    ?? r.targetCount  ?? '-';
+    const done     = r.completedCount ?? r.completed_count ?? r.responseCount ?? '-';
+    const rate     = r.completionRate ?? r.completion_rate ?? r.responseRate   ?? null;
+    const pending  = r.incompleteCount ?? r.incomplete_count ??
+                     (total !== '-' && done !== '-' ? total - done : '-');
+    const avgTime  = r.avgDuration    ?? r.avg_duration   ?? r.averageTime   ?? '-';
+    const vocRate  = r.vocRate        ?? r.voc_rate       ?? r.vocParticipation ?? '-';
+
+    const cards = document.querySelectorAll('.stat-card');
+    if (cards[0]) cards[0].querySelector('.stat-value').textContent = Number(total).toLocaleString?.() ?? total;
+    if (cards[1]) cards[1].querySelector('.stat-value').textContent = Number(done).toLocaleString?.()  ?? done;
+    if (cards[2]) {
+      const pct = rate != null ? (Math.round(Number(rate) * 10) / 10) + '%' : '-';
+      cards[2].querySelector('.stat-value').textContent = pct;
+    }
+    if (cards[3]) cards[3].querySelector('.stat-value').textContent = Number(pending).toLocaleString?.() ?? pending;
+    if (cards[4]) {
+      const sec = Number(avgTime);
+      cards[4].querySelector('.stat-value').textContent =
+        !isNaN(sec) && sec > 0 ? `${Math.floor(sec/60)}분 ${sec%60}초` : String(avgTime);
+    }
+    if (cards[5]) cards[5].querySelector('.stat-value').textContent =
+      vocRate !== '-' ? (Math.round(Number(vocRate)*10)/10) + '%' : '-';
+
+    /* 요약 섹션 업데이트 */
+    updateSummary(r);
+  }
+
+  function updateSummary(report) {
+    /* 주요 문항 결과 */
+    const items = report?.questionSummaries || report?.question_summaries ||
+                  report?.questions || [];
+    if (items.length > 0) {
+      const container = document.querySelector('.q-result-item')?.parentElement;
+      if (container) {
+        container.innerHTML = items.slice(0, 3).map(q => {
+          const score = Number(q.average ?? q.avg ?? q.score ?? 0);
+          const stars = Array.from({length: 5}, (_, i) =>
+            `<span class="star" style="${i < Math.round(score) ? '' : 'filter:grayscale(1);color:#d1d5e0;'}">⭐</span>`
+          ).join('');
+          return `
+            <div class="q-result-item">
+              <div class="q-result-name">${q.questionText || q.text || q.question || q.code}</div>
+              <div class="stars">${stars}</div>
+              <div class="q-result-score">${score.toFixed(1)} / 5</div>
+            </div>`;
+        }).join('') + `<div class="btn-detail"><button onclick="location.href='survey-list.html'">목록으로</button></div>`;
+      }
+    }
+
+    /* VOC 미리보기 */
+    const vocs = report?.vocSamples || report?.voc_samples || report?.recentVoc || [];
+    if (vocs.length > 0) {
+      const vocContainer = document.querySelector('.voc-list');
+      if (vocContainer) {
+        vocContainer.innerHTML = vocs.slice(0, 4).map(v =>
+          `<div class="voc-item">${v.text || v.textValue || v.content || v}</div>`
+        ).join('');
+      }
+    }
+  }
+
+  /* 드롭다운 설문 목록 채우기 */
+  async function loadSurveyList() {
+    const data    = await callAPI({ action: 'listSurveys', limit: 20 });
+    const surveys = data?.result?.surveys || [];
+    const sel     = document.querySelector('.filter-select');
+    if (!sel) return surveys;
+
+    sel.innerHTML = surveys.map(s => {
+      const sid   = s.surveyId || s.survey_id || '';
+      const title = s.title || s.surveyTitle || sid;
+      const sel_  = sid === initSurveyId ? ' selected' : '';
+      return `<option value="${sid}"${sel_}>${title}</option>`;
+    }).join('');
+
+    sel.addEventListener('change', () => {
+      loadReport(sel.value);
+      loadQuestions(sel.value);
+    });
+    return surveys;
+  }
+
+  /* 질문 목록 렌더링 */
+  function renderQuestions(questions) {
+    const list  = document.getElementById('questionList');
+    const count = document.getElementById('qCount');
+    if (!list) return;
+
+    if (!questions || questions.length === 0) {
+      list.innerHTML = '<div class="q-list-empty">질문 정보가 없습니다.</div>';
+      if (count) count.textContent = '0 문항';
+      return;
+    }
+
+    if (count) count.textContent = `${questions.length} 문항`;
+
+    list.innerHTML = questions.map((q, i) => {
+      const num      = q.displayOrder ?? (i + 1);
+      const type     = q.type || q.question_type || '';
+      const isSc     = type.startsWith('SC');
+      const scMin    = q.scaleMin  ?? q.scale_min  ?? 1;
+      const scMax    = q.scaleMax  ?? q.scale_max  ?? (isSc ? parseInt(type.slice(2)) || 5 : null);
+      const cat      = q.category  || '';
+      const text     = q.text      || q.question_text || q.questionText || '';
+      const typeTag  = isSc
+        ? `<span class="q-tag q-tag-sc">척도형</span>`
+        : `<span class="q-tag q-tag-txt">주관식</span>`;
+      const catTag   = cat ? `<span class="q-tag q-tag-cat">${cat}</span>` : '';
+      const scaleStr = isSc ? `${scMin} ~ ${scMax}점` : '텍스트';
+
+      return `
+        <div class="q-item">
+          <div class="q-num">Q${num}</div>
+          <div class="q-meta">
+            <div class="q-tags">${typeTag}${catTag}</div>
+            <div class="q-text">${text}</div>
+          </div>
+          <div class="q-scale">${scaleStr}</div>
+        </div>`;
+    }).join('');
+  }
+
+  /* 설문 질문 로드 */
+  async function loadQuestions(sid) {
+    if (sid === undefined || sid === null || sid === '') return;
+    const listEl = document.getElementById('questionList');
+    if (listEl) listEl.innerHTML = '<div class="q-list-empty">불러오는 중…</div>';
+
+    try {
+      const data = await callAPI({ action: 'getSurvey', surveyId: sid });
+      const questions =
+        data?.result?.survey?.questions ??
+        data?.body?.survey?.questions   ??
+        data?.survey?.questions         ??
+        [];
+
+      if (questions.length === 0) {
+        console.warn('[loadQuestions] 응답은 성공했으나 questions 배열이 비어있음:', data);
+      }
+      renderQuestions(questions);
+    } catch (e) {
+      console.error('[loadQuestions] API 호출 실패:', e.message, '| surveyId:', sid);
+      if (listEl) listEl.innerHTML = `<div class="q-list-empty">질문 로드 실패: ${e.message}</div>`;
+    }
+  }
+
+  /* 보고서 로드 + 화면 업데이트 */
+  async function loadReport(sid) {
+    if (!sid) return;
+    const cards = document.querySelectorAll('.stat-value');
+    cards.forEach(c => c.textContent = '…');
+
+    try {
+      const data   = await callAPI({ action: 'getLatestReport', surveyId: sid });
+      const report = data?.result?.report?.report ?? data?.result?.report ?? data?.result ?? null;
+      if (report) {
+        updateStats(report);
+      }
+    } catch (e) {
+      console.warn('보고서 로드 실패:', e.message);
+    }
+  }
+
+  /* 초기 실행 */
+  (async () => {
+    try {
+      const surveys  = await loadSurveyList();
+      const targetId = initSurveyId || surveys[0]?.surveyId || surveys[0]?.survey_id || '';
+      if (targetId) {
+        await Promise.all([loadReport(targetId), loadQuestions(targetId)]);
+      }
+    } catch (e) {
+      console.error('초기화 실패:', e.message);
+    }
+  })();
+</script>
+
+</body>
+</html>

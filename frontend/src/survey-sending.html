@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>설문 보내기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #3b6bef;
+      --blue-hover: #2d55cc;
+      --blue-light: #eef2ff;
+      --gray-bg: #f3f5fb;
+      --gray-border: #e2e6f0;
+      --gray-text: #6b7280;
+      --text: #111827;
+      --text-sub: #374151;
+      --green: #10b981;
+    }
+
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--gray-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 상단 헤더 ── */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      height: 56px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-logo {
+      font-size: 17px;
+      font-weight: 900;
+      color: var(--blue);
+      letter-spacing: -0.5px;
+    }
+
+    .header-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--gray-border);
+    }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .header-step-code {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-temp {
+      padding: 8px 16px;
+      border: 1px solid var(--gray-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-temp:hover { background: var(--gray-bg); }
+
+    .btn-preview {
+      padding: 8px 16px;
+      border: 1px solid var(--gray-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-preview:hover { background: var(--gray-bg); }
+
+    .btn-send {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-send:hover { background: var(--blue-hover); }
+
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+    }
+
+    /* ── 스텝 인디케이터 ── */
+    .step-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-shrink: 0;
+    }
+
+    .step-item { display: flex; align-items: center; gap: 8px; }
+
+    .step-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-dot.done   { background: var(--green); color: #fff; }
+    .step-dot.active { background: var(--blue); color: #fff; }
+    .step-dot.pending{ background: var(--gray-border); color: var(--gray-text); }
+
+    .step-label { font-size: 12px; font-weight: 700; }
+    .step-label.done   { color: var(--green); }
+    .step-label.active { color: var(--blue); }
+    .step-label.pending{ color: #adb5c8; }
+
+    .step-line {
+      width: 52px;
+      height: 2px;
+      background: var(--gray-border);
+      margin: 0 10px;
+      border-radius: 2px;
+    }
+
+    .step-line.done { background: var(--green); }
+
+    /* ── 메인 영역 ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      padding: 20px 24px;
+      gap: 16px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      align-items: flex-start;
+    }
+
+    /* ── 패널 공통 ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06), 0 0 0 1px var(--gray-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-head h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .panel-head .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+
+    .panel-icon { font-size: 15px; line-height: 1; }
+
+    .panel-body {
+      padding: 18px 20px;
+      overflow-y: auto;
+      flex: 1;
+      max-height: calc(100vh - 180px);
+    }
+
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: #d4d8e6; border-radius: 4px; }
+
+    /* ── 패널 1: 설문 미리보기 ── */
+    .panel-preview { flex: 1; min-width: 0; }
+
+    .preview-field { margin-bottom: 16px; }
+
+    .preview-field-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+      margin-bottom: 6px;
+    }
+
+    .preview-field-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 10px 13px;
+      background: var(--gray-bg);
+      border-radius: 9px;
+      border: 1px solid var(--gray-border);
+    }
+
+    .preview-field-value.description {
+      font-weight: 400;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .preview-time {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--blue);
+      background: var(--blue-light);
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+
+    .preview-divider {
+      height: 1px;
+      background: var(--gray-border);
+      margin: 18px 0;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gray-border);
+    }
+
+    .section-title .count {
+      color: var(--blue);
+      margin-left: 2px;
+    }
+
+    .q-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+    .q-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 13px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .q-item:hover {
+      border-color: var(--blue);
+      background: #f8faff;
+    }
+
+    .q-num {
+      min-width: 26px;
+      height: 26px;
+      border: 1.5px solid var(--gray-border);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .q-content { flex: 1; }
+
+    .q-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .q-type {
+      font-size: 10px;
+      color: var(--gray-text);
+    }
+
+    .btn-view-all {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-view-all:hover { background: var(--blue-light); border-color: var(--blue); }
+
+    /* ── 패널 2: 발송 설정 ── */
+    .panel-config { width: 320px; flex-shrink: 0; }
+
+    .config-group { margin-bottom: 13px; }
+
+    .config-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 5px;
+    }
+
+    .config-select {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .config-select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .config-date-wrap {
+      position: relative;
+    }
+
+    .config-date {
+      width: 100%;
+      padding: 9px 36px 9px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .config-date:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .config-date-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-text);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .config-divider {
+      height: 1px;
+      background: var(--gray-border);
+      margin: 16px 0;
+    }
+
+    /* ── 체크리스트 ── */
+    .checklist-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .checklist-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .checklist-score {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      background: #d1fae5;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .checklist-items { display: flex; flex-direction: column; gap: 8px; }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .check-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .check-icon.done {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .check-icon.pending {
+      background: var(--gray-border);
+      color: var(--gray-text);
+    }
+
+    .check-text.done { color: var(--text-sub); }
+    .check-text.pending { color: #adb5c8; }
+
+    /* ── q-item 클릭 커서 ── */
+    .q-item { cursor: pointer; position: relative; }
+
+    .q-edit-hint {
+      font-size: 10px;
+      color: var(--blue);
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .q-item:hover .q-edit-hint { opacity: 1; }
+
+    /* ── 모달 오버레이 ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    /* ── 모달 본체 ── */
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+      width: 100%;
+      max-width: 660px;
+      margin: 20px;
+      animation: modalIn 0.18s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-header {
+      padding: 18px 24px 16px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .modal-step-badge {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--blue);
+      background: var(--blue-light);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-left: 8px;
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: var(--gray-bg);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--gray-text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .modal-close:hover { background: var(--gray-border); }
+
+    .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* 필드 행 */
+    .mfield { display: flex; align-items: flex-start; gap: 16px; }
+
+    .mfield-label {
+      width: 80px;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      padding-top: 9px;
+    }
+
+    .mfield-label .req { color: #ef4444; margin-left: 2px; }
+
+    .mfield-content { flex: 1; }
+
+    .m-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .m-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .m-type-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .m-select {
+      flex: 1;
+      padding: 9px 28px 9px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fafbfd;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23aaa' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .m-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,107,239,0.1); }
+
+    .m-toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .m-toggle-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+
+    .m-toggle-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    /* 보기 목록 */
+    .option-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .option-num {
+      min-width: 22px;
+      height: 22px;
+      border: 1.5px solid var(--gray-border);
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .option-input {
+      flex: 1;
+      padding: 8px 11px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fafbfd;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .option-input:focus { border-color: var(--blue); }
+
+    .btn-del-option {
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: transparent;
+      color: #c0c7d6;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .btn-del-option:hover { background: #fef2f2; color: #ef4444; }
+
+    .btn-add-option {
+      width: 100%;
+      padding: 9px;
+      border: 2px dashed #c5cde8;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-add-option:hover { background: var(--blue-light); border-color: var(--blue); }
+
+    /* VOC 설정 행 */
+    .voc-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--gray-bg);
+      border-radius: 9px;
+    }
+
+    .voc-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+
+    .voc-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 모달 푸터 */
+    .modal-footer {
+      padding: 14px 24px 18px;
+      border-top: 1px solid var(--gray-border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn-modal-cancel {
+      padding: 10px 24px;
+      border: 1px solid var(--gray-border);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--gray-text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-modal-cancel:hover { background: var(--gray-bg); }
+
+    .btn-modal-save {
+      padding: 10px 32px;
+      border: none;
+      border-radius: 9px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-modal-save:hover { background: var(--blue-hover); }
+  </style>
+</head>
+<body>
+
+<!-- ── 상단 헤더 ── -->
+<header class="app-header">
+  <div class="header-left">
+    <span class="header-logo">COP</span>
+    <div class="header-sep"></div>
+    <span class="header-title">설문 보내기</span>
+    <span class="header-step-code">A-01</span>
+  </div>
+  <div class="header-right">
+    <button class="btn-temp">임시저장</button>
+    <button class="btn-preview">미리보기</button>
+    <button class="btn-send">발송하기</button>
+    <div class="header-avatar">관</div>
+  </div>
+</header>
+
+<!-- ── 스텝 인디케이터 ── -->
+<div class="step-bar">
+  <div class="step-item">
+    <div class="step-dot done">✓</div>
+    <span class="step-label done">설문 생성</span>
+  </div>
+  <div class="step-line done"></div>
+  <div class="step-item">
+    <div class="step-dot active">2</div>
+    <span class="step-label active">설문 보내기</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step-item">
+    <div class="step-dot pending">3</div>
+    <span class="step-label pending">결과 확인</span>
+  </div>
+</div>
+
+<!-- ── 메인 2-패널 ── -->
+<div class="main-area">
+
+  <!-- 패널 1: 설문 미리보기 -->
+  <div class="panel panel-preview">
+    <div class="panel-head">
+      <span class="panel-icon">📄</span>
+      <h3>설문 미리보기</h3>
+    </div>
+    <div class="panel-body">
+
+      <div class="preview-field">
+        <div class="preview-field-label">설문 제목</div>
+        <div class="preview-field-value">2025 상반기 직원 만족도 조사</div>
+      </div>
+
+      <div class="preview-field">
+        <div class="preview-field-label">설문 설명</div>
+        <div class="preview-field-value description">
+          주요 서비스, 업무환경, 복지제도 등에 대한 의견을 수집합니다.
+        </div>
+      </div>
+
+      <div class="preview-field">
+        <div class="preview-field-label">대상 소요 시간</div>
+        <div class="preview-time">⏱ 약 3분</div>
+      </div>
+
+      <div class="preview-divider"></div>
+
+      <div class="section-title">
+        문항 목록 <span class="count">(총 10문항)</span>
+      </div>
+
+      <div class="q-list">
+        <div class="q-item" onclick="openModal('회사 조직문화에 얼마나 만족하시나요?')">
+          <div class="q-num">1</div>
+          <div class="q-content">
+            <div class="q-title">조직/업무 만족도</div>
+            <div class="q-type">5점 척도형</div>
+          </div>
+          <span class="q-edit-hint">✏️ 수정</span>
+        </div>
+        <div class="q-item" onclick="openModal('업무환경에 대해 어떻게 평가하시나요?')">
+          <div class="q-num">2</div>
+          <div class="q-content">
+            <div class="q-title">업무환경 평가</div>
+            <div class="q-type">단일 선택</div>
+          </div>
+          <span class="q-edit-hint">✏️ 수정</span>
+        </div>
+        <div class="q-item" onclick="openModal('복지제도 만족도는 어떠신가요?')">
+          <div class="q-num">3</div>
+          <div class="q-content">
+            <div class="q-title">복지제도 만족도</div>
+            <div class="q-type">단일 선택</div>
+          </div>
+          <span class="q-edit-hint">✏️ 수정</span>
+        </div>
+      </div>
+
+      <button class="btn-view-all">전체 문항 보기</button>
+
+    </div>
+  </div>
+
+  <!-- 패널 2: 발송 설정 + 체크리스트 -->
+  <div class="panel panel-config">
+    <div class="panel-head">
+      <span class="panel-icon">📮</span>
+      <h3>발송 설정</h3>
+    </div>
+    <div class="panel-body">
+
+      <div class="config-group">
+        <div class="config-label">발송 대상</div>
+        <select class="config-select">
+          <option>전체 직원 (1,245명)</option>
+          <option>부서별 선택</option>
+          <option>직급별 선택</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <div class="config-label">발송 채널</div>
+        <select class="config-select">
+          <option>이메일</option>
+          <option>SMS</option>
+          <option>사내 메신저</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <div class="config-label">발송 방법</div>
+        <select class="config-select">
+          <option>즉시 발송</option>
+          <option>예약 발송</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <div class="config-label">응답 마감일</div>
+        <div class="config-date-wrap">
+          <input type="date" class="config-date" value="2025-06-30" />
+          <span class="config-date-icon">📅</span>
+        </div>
+      </div>
+
+      <div class="config-divider"></div>
+
+      <div class="checklist-head">
+        <span class="checklist-title">체크리스트</span>
+        <span class="checklist-score">6 / 6</span>
+      </div>
+
+      <div class="checklist-items">
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">설문 제목 입력</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">최소 1개 문항</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">필수 문항 설정</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">VOC 문항 요청 확인</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">발송 대상 선택</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">발송 채널</span>
+        </div>
+        <div class="check-item">
+          <div class="check-icon done">✓</div>
+          <span class="check-text done">응답 마감일 설정</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── 문항 수정 모달 (A-01-1) ── -->
+<div class="modal-overlay" id="editModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;">
+        <h3>문항 수정</h3>
+        <span class="modal-step-badge">A-01-1</span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- 질문 내용 -->
+      <div class="mfield">
+        <div class="mfield-label">질문 내용<span class="req">*</span></div>
+        <div class="mfield-content">
+          <input type="text" class="m-input" id="modal-question-text"
+                 placeholder="질문을 입력하세요" />
+        </div>
+      </div>
+
+      <!-- 문항 유형 + 필수 여부 -->
+      <div class="mfield">
+        <div class="mfield-label">문항 유형<span class="req">*</span></div>
+        <div class="mfield-content">
+          <div class="m-type-row">
+            <select class="m-select">
+              <option>단일 선택</option>
+              <option>다중 선택</option>
+              <option>5점 척도</option>
+              <option>단답형</option>
+              <option>장문형</option>
+            </select>
+            <div class="m-toggle-group">
+              <span class="m-toggle-label">필수 여부</span>
+              <label class="switch" onclick="toggleMust()">
+                <div class="sw-track on" id="must-track">
+                  <div class="sw-thumb"></div>
+                </div>
+              </label>
+              <span class="m-toggle-text" id="must-text">필수</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 보기 목록 -->
+      <div class="mfield" style="align-items:flex-start;">
+        <div class="mfield-label" style="padding-top:6px;">보기 목록<span class="req">*</span></div>
+        <div class="mfield-content">
+          <div class="option-list" id="option-list">
+            <div class="option-row">
+              <div class="option-num">1</div>
+              <input type="text" class="option-input" value="매우 만족" />
+              <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+            </div>
+            <div class="option-row">
+              <div class="option-num">2</div>
+              <input type="text" class="option-input" value="만족" />
+              <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+            </div>
+            <div class="option-row">
+              <div class="option-num">3</div>
+              <input type="text" class="option-input" value="보통" />
+              <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+            </div>
+            <div class="option-row">
+              <div class="option-num">4</div>
+              <input type="text" class="option-input" value="불만족" />
+              <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+            </div>
+            <div class="option-row">
+              <div class="option-num">5</div>
+              <input type="text" class="option-input" value="매우 불만족" />
+              <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+            </div>
+          </div>
+          <button class="btn-add-option" onclick="addOption()">+ 보기 추가</button>
+        </div>
+      </div>
+
+      <!-- VOC 설정 -->
+      <div class="mfield">
+        <div class="mfield-label">VOC 설정</div>
+        <div class="mfield-content">
+          <div class="voc-row">
+            <span class="voc-label">VOC 입력 받기</span>
+            <div class="voc-right">
+              <label class="switch" onclick="toggleVoc()">
+                <div class="sw-track on" id="voc-modal-track">
+                  <div class="sw-thumb"></div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-modal-save" onclick="saveModal()">저장</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ── 모달 열기/닫기 ── */
+  function openModal(questionText) {
+    document.getElementById('modal-question-text').value = questionText || '';
+    document.getElementById('editModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('editModal')) closeModal();
+  }
+
+  function saveModal() {
+    alert('문항이 저장되었습니다.');
+    closeModal();
+  }
+
+  /* ── 토글 ── */
+  function toggleMust() {
+    const t = document.getElementById('must-track');
+    const txt = document.getElementById('must-text');
+    t.classList.toggle('on');
+    txt.textContent = t.classList.contains('on') ? '필수' : '선택';
+    txt.style.color = t.classList.contains('on') ? 'var(--blue)' : 'var(--gray-text)';
+  }
+
+  function toggleVoc() {
+    document.getElementById('voc-modal-track').classList.toggle('on');
+  }
+
+  /* ── 보기 추가/삭제 ── */
+  function addOption() {
+    const list = document.getElementById('option-list');
+    const num = list.children.length + 1;
+    const row = document.createElement('div');
+    row.className = 'option-row';
+    row.innerHTML = `
+      <div class="option-num">${num}</div>
+      <input type="text" class="option-input" placeholder="보기 내용 입력" />
+      <button class="btn-del-option" onclick="delOption(this)">🗑</button>
+    `;
+    list.appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  function delOption(btn) {
+    const list = document.getElementById('option-list');
+    if (list.children.length <= 1) { alert('최소 1개의 보기가 필요합니다.'); return; }
+    btn.closest('.option-row').remove();
+    renumberOptions();
+  }
+
+  function renumberOptions() {
+    document.querySelectorAll('#option-list .option-num').forEach((el, i) => {
+      el.textContent = i + 1;
+    });
+  }
+
+  /* ── ESC 키 닫기 ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  /* ── API 연동 ── */
+  const API_URL  = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
+  const surveyId = new URLSearchParams(location.search).get('surveyId') || 'S001';
+
+  async function callAPI(payload) {
+    const res  = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.message || `${res.status}`);
+    return data;
+  }
+
+  function qText(q) { return q.text || q.question || q.content || q.label || q.code || ''; }
+  function typeBadge(t) {
+    return t === 'SC5' ? '5점 척도형' : t === 'OE' ? '주관식' : t || '단일 선택';
+  }
+
+  function renderSurvey(survey) {
+    if (!survey) return;
+    const qs    = survey.questions || [];
+    const total = qs.length;
+
+    /* 제목 */
+    const titleEl = document.querySelector('.preview-field-value');
+    if (titleEl) titleEl.textContent = survey.title || survey.surveyTitle || '설문';
+
+    /* 문항 수 */
+    document.querySelector('.section-title .count').textContent = `(총 ${total}문항)`;
+
+    /* 예상 시간 */
+    const timeEl = document.querySelector('.preview-time');
+    if (timeEl) timeEl.textContent = `⏱ 약 ${Math.ceil(total * 0.35)}분`;
+
+    /* 문항 목록 */
+    const listEl   = document.querySelector('.q-list');
+    let expanded   = false;
+
+    function renderRows(items, startIdx) {
+      return items.map((q, i) => {
+        const idx = startIdx + i;
+        return `
+          <div class="q-item" onclick="openModal('${qText(q).replace(/'/g,"\\'")}')">
+            <div class="q-num">${idx + 1}</div>
+            <div class="q-content">
+              <div class="q-title">${qText(q)}</div>
+              <div class="q-type">${typeBadge(q.type)}</div>
+            </div>
+            <span class="q-edit-hint">✏️ 수정</span>
+          </div>`;
+      }).join('');
+    }
+
+    listEl.innerHTML = renderRows(qs.slice(0, 3), 0);
+
+    const viewAllBtn = document.querySelector('.btn-view-all');
+    viewAllBtn.onclick = () => {
+      if (!expanded) {
+        listEl.insertAdjacentHTML('beforeend', renderRows(qs.slice(3), 3));
+        viewAllBtn.textContent = '접기';
+      } else {
+        listEl.innerHTML = renderRows(qs.slice(0, 3), 0);
+        viewAllBtn.textContent = '전체 문항 보기';
+      }
+      expanded = !expanded;
+    };
+
+    /* 발송하기 버튼 — 고객 설문 링크 복사 */
+    const sendBtn = document.querySelector('.btn-send');
+    const sid     = survey.surveyId || survey.survey_id || surveyId;
+    sendBtn.onclick = () => {
+      const url = location.href.replace('survey-sending.html', 'customer-survey.html')
+                              .split('?')[0] + `?surveyId=${sid}`;
+      navigator.clipboard?.writeText(url).then(() => alert(`링크 복사 완료!\n${url}`))
+                                         .catch(() => alert(`발송 링크:\n${url}`));
+    };
+  }
+
+  /* 초기 로드 */
+  (async () => {
+    try {
+      const data   = await callAPI({ action: 'getSurvey', surveyId });
+      renderSurvey(data?.result?.survey);
+    } catch (e) {
+      console.warn('설문 로드 실패:', e.message);
+    }
+  })();
+</script>
+
+</body>
+</html>
