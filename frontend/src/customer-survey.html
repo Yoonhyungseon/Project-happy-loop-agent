@@ -94,6 +94,7 @@
       text-align: center;
       line-height: 1.6;
       margin-bottom: 20px;
+      white-space: pre-line;
     }
 
     .c01-time {
@@ -158,6 +159,11 @@
 
     .btn-start:hover { background: #2d55cc; }
     .btn-start:active { transform: scale(0.98); }
+    .btn-start:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
 
     /* ── C-02/C-03 공통 헤더 ── */
     .survey-header {
@@ -701,14 +707,21 @@
 
 <script>
   /* ── API 설정 ── */
-  const API_URL = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
-  const surveyId = new URLSearchParams(location.search).get('surveyId') || 'S001';
+  const API_URL  = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
+  const params = new URLSearchParams(location.search);
+  const surveyId =
+    params.get('surveyId')  ||
+    params.get('surveyid')  ||
+    params.get('surveyID')  ||
+    params.get('survey_id') ||
+    params.get('surveyld')  ||
+    params.get('surveyLd')  ||
+    '';
 
   let surveyData = null;
-  let questions   = [];      // SC5 질문 → C-02
-  let vocQuestion = null;    // 첫 번째 비-SC5 질문 → C-03
-  let currentQ    = 0;
-  const answers   = {};
+  let questions  = [];   // API 문항을 응답 화면용 타입으로 정규화한 배열
+  let currentQ   = 0;
+  const answers  = {};   // { [index]: number | string | string[] }
 
   async function callAPI(payload) {
     const res  = await fetch(API_URL, {
@@ -718,44 +731,150 @@
     });
     const text = await res.text();
     const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data.message || `${res.status} ${res.statusText}`);
+    if (!res.ok) throw new Error(
+      data?.body?.message || data?.message || `HTTP ${res.status}`
+    );
     return data;
   }
 
   function qText(q) {
-    return q.text || q.question || q.content || q.label || q.code || '';
+    return q.text || q.questionText || q.question_text || q.question || q.content || q.code || '';
   }
 
-  async function loadSurvey() {
-    const data = await callAPI({ action: 'getSurvey', surveyId });
-    surveyData  = data?.result?.survey;
-    if (!surveyData) throw new Error('설문 정보를 불러올 수 없습니다.');
+  /* 척도 레이블 매핑 */
+  const SCALE_LABELS = {
+    2: ['아니요', '예'],
+    3: ['낮음', '높음'],
+    4: ['매우 불만족', '매우 만족'],
+    5: ['매우 불만족', '매우 만족'],
+  };
 
-    // SC5 → C-02 척도 질문
-    const sc5 = (surveyData.questions || []).filter(q => q.type === 'SC5');
-    questions  = sc5.map(q => ({
-      code: q.code, type: 'scale', required: true,
-      text: qText(q), min: '매우 불만족', max: '매우 만족'
-    }));
+  function getQuestionCode(q, index) {
+    return q.code || q.questionCode || q.question_code || q.id || `Q${index + 1}`;
+  }
 
-    // 비-SC5 첫 번째 → C-03 VOC
-    vocQuestion = (surveyData.questions || []).find(q => q.type !== 'SC5') || null;
+  function getRawType(q) {
+    return String(q.type || q.questionType || q.question_type || q.inputType || q.answerType || '').trim();
+  }
 
-    // C-01 / 헤더 타이틀 업데이트
-    const title = surveyData.title || surveyData.surveyTitle || '설문조사';
-    document.querySelector('.c01-title').textContent = title;
-    document.querySelectorAll('.survey-header-title').forEach(el => el.textContent = title);
+  function getOptions(q) {
+    const raw =
+      q.options ??
+      q.choices ??
+      q.choiceOptions ??
+      q.optionList ??
+      q.items ??
+      q.values ??
+      [];
 
-    // C-03 질문 텍스트 업데이트
-    if (vocQuestion) {
-      document.querySelector('#screen-c03 .question-text').innerHTML =
-        `${qText(vocQuestion)} <span style="color:var(--red)">*</span>`;
+    const list = typeof raw === 'string'
+      ? raw.split(/\r?\n|,/).map(v => v.trim()).filter(Boolean)
+      : Array.isArray(raw) ? raw : [];
+
+    return list.map((item, index) => {
+      if (typeof item === 'string' || typeof item === 'number') {
+        const text = String(item);
+        return { value: text, label: text };
+      }
+
+      const label = item.label || item.text || item.optionText || item.name || item.content || item.value || `보기 ${index + 1}`;
+      const value = item.value || item.code || item.id || label;
+      return { value: String(value), label: String(label) };
+    });
+  }
+
+  function normalizeQuestion(q, index) {
+    const rawType = getRawType(q);
+    const upperType = rawType.toUpperCase();
+    const code = getQuestionCode(q, index);
+    const required = q.isRequired ?? q.required ?? q.is_required;
+    const base = {
+      code,
+      rawType,
+      required: !(required === false || required === 'false' || required === 0 || required === '0'),
+      text: qText(q),
+    };
+
+    if (upperType.startsWith('SC') || /척도|SCALE|RATING/.test(upperType)) {
+      const parsedMax = parseInt(upperType.replace(/\D/g, ''), 10);
+      const scMin = Number(q.scaleMin ?? q.scale_min ?? 1);
+      const fallbackMax = Number.isFinite(parsedMax) ? parsedMax : 5;
+      const scMax = Number(q.scaleMax ?? q.scale_max ?? fallbackMax);
+      const labels = SCALE_LABELS[scMax] || [String(scMin), `${scMax}점`];
+      return {
+        ...base,
+        type: 'scale',
+        scaleMin: scMin,
+        scaleMax: scMax,
+        minLabel: q.minLabel || q.min_label || labels[0],
+        maxLabel: q.maxLabel || q.max_label || labels[labels.length - 1],
+      };
     }
 
-    // C-03 progress 업데이트
-    const total = questions.length + (vocQuestion ? 1 : 0);
-    document.querySelector('#screen-c03 .progress-text').textContent =
-      `${total} / ${total} (100%)`;
+    if (/TXT|TEXT|TEXTAREA|SHORT|LONG|주관|단답|장문|서술|의견|VOC/.test(upperType)) {
+      return {
+        ...base,
+        type: 'text',
+        placeholder: q.placeholder || '의견을 자유롭게 작성해주세요.',
+        maxLength: q.maxLength || q.max_length || 500,
+      };
+    }
+
+    const options = getOptions(q);
+    const isMultiple = /MULTI|CHECK|CHECKBOX|다중|복수/.test(upperType);
+    const isSingle = /SINGLE|RADIO|SELECT|CHOICE|OPTION|객관|단일/.test(upperType);
+
+    if (options.length > 0 || isMultiple || isSingle) {
+      return {
+        ...base,
+        type: isMultiple ? 'multiple' : 'single',
+        options,
+      };
+    }
+
+    return {
+      ...base,
+      type: 'text',
+      placeholder: q.placeholder || '답변을 입력해주세요.',
+      maxLength: q.maxLength || q.max_length || 500,
+    };
+  }
+
+  function getSortedQuestions(list) {
+    return [...list].sort((a, b) => {
+      const ao = Number(a.displayOrder ?? a.display_order ?? a.order ?? a.sequence ?? 0);
+      const bo = Number(b.displayOrder ?? b.display_order ?? b.order ?? b.sequence ?? 0);
+      return ao - bo;
+    });
+  }
+
+  /* ── 설문 로드 ── */
+  async function loadSurvey() {
+    if (!surveyId) throw new Error('URL에 surveyId 파라미터가 없습니다.');
+
+    const data = await callAPI({ action: 'getSurvey', surveyId });
+    surveyData  = data?.result?.survey ?? data?.body?.survey ?? data?.survey;
+    if (!surveyData) throw new Error('설문 정보를 불러올 수 없습니다.');
+
+    const allQ = surveyData.questions || [];
+
+    /* 전체 문항을 questions 배열로 변환 */
+    questions = getSortedQuestions(allQ)
+      .map((q, index) => normalizeQuestion(q, index))
+      .filter(q => q.text);
+
+    /* C-01 화면 업데이트 */
+    const title   = surveyData.title || surveyData.surveyTitle || '설문조사';
+    const service = surveyData.service || '';
+    const desc    = surveyData.description || surveyData.desc || surveyData.summary || '';
+    document.querySelector('.c01-title').textContent = title;
+    if (service) document.querySelector('.c01-service-name').textContent = service;
+    if (desc) document.querySelector('.c01-desc').textContent = desc;
+    document.querySelectorAll('.survey-header-title').forEach(el => el.textContent = title);
+
+    const mins = Math.ceil(questions.length * 0.4);
+    document.querySelector('.c01-time').textContent =
+      `⏱ 예상 소요 시간: 약 ${mins < 1 ? 1 : mins}분`;
   }
 
   /* ── 화면 전환 ── */
@@ -771,50 +890,62 @@
     btn.disabled = true;
     try {
       if (!surveyData) await loadSurvey();
+      if (questions.length === 0) throw new Error('설문 문항이 없습니다.');
       currentQ = 0;
-      if (questions.length > 0) {
-        renderQuestion();
-        showScreen('screen-c02');
-      } else {
-        showScreen('screen-c03');
-      }
+      renderQuestion();
+      showScreen('screen-c02');
     } catch (e) {
       btn.textContent = '설문 시작하기';
       btn.disabled = false;
-      alert('설문을 불러오지 못했습니다: ' + e.message);
+      alert('설문을 불러오지 못했습니다:\n' + e.message);
     }
   }
 
-  /* ── 질문 렌더링 ── */
+  /* ── 질문 렌더링 (C-02) ── */
   function renderQuestion() {
-    const q = questions[currentQ];
-    const total = questions.length + 1; // +1 for VOC
-    const num = currentQ + 1;
-    const pct = Math.round((num / total) * 100);
+    const q     = questions[currentQ];
+    const total = questions.length;
+    const num   = currentQ + 1;
+    const pct   = Math.round((num / total) * 100);
+    const isLast = currentQ === total - 1;
 
+    /* 진행률 */
     document.getElementById('progress-fill').style.width = pct + '%';
     document.getElementById('progress-text').textContent = `${num} / ${total} (${pct}%)`;
+
+    /* 질문 텍스트 */
     document.getElementById('q-text').textContent = q.text;
     document.getElementById('q-required').style.display = q.required ? 'block' : 'none';
     document.getElementById('error-msg').classList.remove('show');
 
+    /* 마지막 문항에서 "다음" → "제출하기" */
+    const nextBtn = document.querySelector('#screen-c02 .btn-next');
+    nextBtn.textContent = isLast ? '제출하기' : '다음';
+    nextBtn.style.background = isLast ? 'var(--green)' : 'var(--blue)';
+
+    /* 답변 영역 렌더링 */
     const area = document.getElementById('q-options-area');
     area.innerHTML = '';
 
     if (q.type === 'scale') {
-      const wrap = document.createElement('div');
+      const count = q.scaleMax - q.scaleMin + 1;
+      const wrap  = document.createElement('div');
       wrap.className = 'scale-wrap';
 
       const opts = document.createElement('div');
       opts.className = 'scale-options';
+      /* 버튼이 적을 때 가운데 정렬 */
+      if (count <= 3) {
+        opts.style.cssText = `justify-content:center; gap:16px;`;
+      }
 
-      for (let i = 1; i <= 5; i++) {
+      for (let i = q.scaleMin; i <= q.scaleMax; i++) {
         const btn = document.createElement('button');
         btn.className = 'scale-btn' + (answers[currentQ] === i ? ' selected' : '');
         btn.textContent = i;
         btn.onclick = () => {
           answers[currentQ] = i;
-          document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('selected'));
+          opts.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
           document.getElementById('error-msg').classList.remove('show');
         };
@@ -823,141 +954,169 @@
 
       const labels = document.createElement('div');
       labels.className = 'scale-labels';
-      labels.innerHTML = `<span>${q.min}</span><span>${q.max}</span>`;
+      const minLabel = document.createElement('span');
+      minLabel.textContent = q.minLabel;
+      const maxLabel = document.createElement('span');
+      maxLabel.textContent = q.maxLabel;
+      labels.appendChild(minLabel);
+      labels.appendChild(maxLabel);
 
       wrap.appendChild(opts);
       wrap.appendChild(labels);
       area.appendChild(wrap);
 
-    } else if (q.type === 'single') {
+    } else if (q.type === 'single' || q.type === 'multiple') {
       const list = document.createElement('div');
       list.className = 'choice-list';
 
-      q.options.forEach((opt, idx) => {
+      q.options.forEach(option => {
+        const selected = q.type === 'multiple'
+          ? (answers[currentQ] || []).includes(option.value)
+          : answers[currentQ] === option.value;
+
         const item = document.createElement('div');
-        item.className = 'choice-item' + (answers[currentQ] === idx ? ' selected' : '');
-        item.innerHTML = `
-          <div class="choice-circle"></div>
-          <span class="choice-text">${opt}</span>
-        `;
+        item.className = 'choice-item' + (selected ? ' selected' : '');
+        const mark = document.createElement('div');
+        mark.className = q.type === 'multiple' ? 'choice-square' : 'choice-circle';
+        mark.textContent = q.type === 'multiple' ? '✓' : '';
+
+        const text = document.createElement('div');
+        text.className = 'choice-text';
+        text.textContent = option.label;
+
+        item.appendChild(mark);
+        item.appendChild(text);
+
         item.onclick = () => {
-          answers[currentQ] = idx;
-          list.querySelectorAll('.choice-item').forEach(i => i.classList.remove('selected'));
-          item.classList.add('selected');
+          if (q.type === 'multiple') {
+            const current = Array.isArray(answers[currentQ]) ? [...answers[currentQ]] : [];
+            const idx = current.indexOf(option.value);
+            if (idx >= 0) current.splice(idx, 1);
+            else current.push(option.value);
+            answers[currentQ] = current;
+          } else {
+            answers[currentQ] = option.value;
+          }
+
+          renderQuestion();
           document.getElementById('error-msg').classList.remove('show');
         };
+
         list.appendChild(item);
       });
+
+      if (q.options.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'error-msg show';
+        empty.textContent = '이 문항의 보기가 없습니다.';
+        list.appendChild(empty);
+      }
+
       area.appendChild(list);
 
-    } else if (q.type === 'multi') {
-      if (!answers[currentQ]) answers[currentQ] = new Set();
-      const list = document.createElement('div');
-      list.className = 'choice-list';
+    } else if (q.type === 'text') {
+      const ta = document.createElement('textarea');
+      ta.className = 'voc-textarea';
+      ta.placeholder = q.placeholder;
+      ta.maxLength   = q.maxLength;
+      ta.value       = answers[currentQ] || '';
+      ta.style.cssText = 'flex:none;min-height:160px;width:100%;margin-top:4px;';
+      ta.oninput = () => {
+        answers[currentQ] = ta.value;
+        document.getElementById('error-msg').classList.remove('show');
+      };
+      area.appendChild(ta);
 
-      q.options.forEach((opt, idx) => {
-        const item = document.createElement('div');
-        item.className = 'choice-item' + (answers[currentQ].has(idx) ? ' selected' : '');
-        item.innerHTML = `
-          <div class="choice-square">✓</div>
-          <span class="choice-text">${opt}</span>
-        `;
-        item.onclick = () => {
-          if (answers[currentQ].has(idx)) {
-            answers[currentQ].delete(idx);
-            item.classList.remove('selected');
-          } else {
-            answers[currentQ].add(idx);
-            item.classList.add('selected');
-          }
-        };
-        list.appendChild(item);
-      });
-      area.appendChild(list);
+      const counter = document.createElement('div');
+      counter.style.cssText = 'font-size:11px;color:var(--gray-text);text-align:right;margin-top:4px;';
+      counter.textContent = `${(answers[currentQ] || '').length} / ${q.maxLength}`;
+      ta.oninput = () => {
+        answers[currentQ] = ta.value;
+        counter.textContent = `${ta.value.length} / ${q.maxLength}`;
+        document.getElementById('error-msg').classList.remove('show');
+      };
+      area.appendChild(counter);
     }
   }
 
-  /* ── 다음 ── */
+  /* ── 다음 / 제출 ── */
   function goNext() {
-    const q = questions[currentQ];
+    const q      = questions[currentQ];
+    const isLast = currentQ === questions.length - 1;
+    const errEl  = document.getElementById('error-msg');
 
-    // 필수 검증
+    /* 필수 검증 */
     if (q.required) {
       const ans = answers[currentQ];
-      if (ans === undefined || ans === null) {
-        document.getElementById('error-msg').classList.add('show');
+      if (q.type === 'scale' && (ans === undefined || ans === null)) {
+        errEl.textContent = '답변을 선택해주세요.';
+        errEl.classList.add('show');
+        return;
+      }
+      if (q.type === 'text' && !String(ans || '').trim()) {
+        errEl.textContent = '의견을 입력해주세요.';
+        errEl.classList.add('show');
+        return;
+      }
+      if (q.type === 'single' && !ans) {
+        errEl.textContent = '답변을 선택해주세요.';
+        errEl.classList.add('show');
+        return;
+      }
+      if (q.type === 'multiple' && (!Array.isArray(ans) || ans.length === 0)) {
+        errEl.textContent = '답변을 하나 이상 선택해주세요.';
+        errEl.classList.add('show');
         return;
       }
     }
 
-    if (currentQ < questions.length - 1) {
+    if (!isLast) {
       currentQ++;
       renderQuestion();
     } else {
-      // 마지막 일반 질문 → VOC 화면
-      showScreen('screen-c03');
+      submitSurvey();
     }
   }
 
   /* ── 이전 ── */
   function goPrev() {
     const active = document.querySelector('.screen.active').id;
-
-    if (active === 'screen-c03') {
-      currentQ = questions.length - 1;
-      renderQuestion();
-      showScreen('screen-c02');
-    } else if (active === 'screen-c02') {
-      if (currentQ > 0) {
-        currentQ--;
-        renderQuestion();
-      } else {
-        showScreen('screen-c01');
-      }
+    if (active === 'screen-c02') {
+      if (currentQ > 0) { currentQ--; renderQuestion(); }
+      else showScreen('screen-c01');
     }
   }
 
-  /* ── VOC 글자 수 카운터 ── */
-  function updateVocCounter() {
-    const len = document.getElementById('voc-input').value.length;
-    document.getElementById('voc-count').textContent = len;
-  }
-
-  /* ── 제출 ── */
+  /* ── 제출 → RDS 저장 ── */
   async function submitSurvey() {
-    const voc = document.getElementById('voc-input').value.trim();
-    if (!voc) {
-      document.getElementById('voc-error').classList.add('show');
-      return;
-    }
-
-    const btn = document.querySelector('.btn-submit');
-    btn.textContent = '제출 중...';
-    btn.disabled = true;
+    const nextBtn = document.querySelector('#screen-c02 .btn-next');
+    nextBtn.textContent = '제출 중...';
+    nextBtn.disabled = true;
 
     try {
-      // SC5 응답 조합
-      const apiAnswers = questions.map((q, idx) => ({
-        questionCode: q.code,
-        scoreValue: Number(answers[idx] ?? 1)
-      }));
+      const sid = surveyData?.surveyId ?? surveyData?.survey_id ?? surveyId;
 
-      // VOC 응답 추가
-      if (vocQuestion) {
-        apiAnswers.push({ questionCode: vocQuestion.code, textValue: voc });
-      }
+      const apiAnswers = questions.map((q, idx) => {
+        if (q.type === 'scale') {
+          return { questionCode: q.code, scoreValue: Number(answers[idx] ?? q.scaleMin) };
+        }
+        if (q.type === 'multiple') {
+          return { questionCode: q.code, textValue: (answers[idx] || []).join(', ') };
+        }
+        return { questionCode: q.code, textValue: String(answers[idx] || '') };
+      });
 
       await callAPI({
         action: 'submitSurveyResponse',
-        surveyId: surveyData?.surveyId || surveyData?.survey_id || surveyId,
+        surveyId: sid,
         answers: apiAnswers
       });
 
       showScreen('screen-c04');
     } catch (e) {
-      btn.textContent = '제출하기';
-      btn.disabled = false;
-      alert('제출에 실패했습니다: ' + e.message);
+      nextBtn.textContent = '제출하기';
+      nextBtn.disabled = false;
+      alert('제출에 실패했습니다:\n' + e.message);
     }
   }
 
@@ -965,6 +1124,11 @@
   function closeSurvey() {
     if (window.opener) window.close();
     else history.back();
+  }
+
+  /* ── 페이지 로드 시 설문 미리 로드 (C-01 화면 즉시 업데이트) ── */
+  if (surveyId) {
+    loadSurvey().catch(e => console.warn('[customer-survey] 미리 로드 실패:', e.message));
   }
 </script>
 

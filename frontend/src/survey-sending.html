@@ -789,9 +789,66 @@
       font-weight: 700;
       cursor: pointer;
       transition: background 0.15s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .btn-modal-save:hover { background: var(--blue-hover); }
+
+    .send-link-modal { max-width: 560px; }
+
+    .send-link-field {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .send-link-input {
+      flex: 1;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid #d0d6e8;
+      border-radius: 8px;
+      background: #fafbfd;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.4;
+      outline: none;
+    }
+
+    .send-link-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,107,239,0.1);
+    }
+
+    .btn-copy-link {
+      padding: 0 18px;
+      border: none;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .btn-copy-link:hover { background: var(--blue-hover); }
+
+    .send-link-status {
+      min-height: 18px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 640px) {
+      .send-link-field { flex-direction: column; }
+      .btn-copy-link { height: 40px; }
+    }
   </style>
 </head>
 <body>
@@ -1091,6 +1148,29 @@
   </div>
 </div>
 
+<!-- ── 발송 링크 모달 ── -->
+<div class="modal-overlay" id="sendLinkModal" onclick="handleSendLinkOverlayClick(event)">
+  <div class="modal send-link-modal" role="dialog" aria-modal="true" aria-labelledby="sendLinkTitle">
+    <div class="modal-header">
+      <h3 id="sendLinkTitle">설문 링크</h3>
+      <button class="modal-close" onclick="closeSendLinkModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="send-link-field">
+        <input type="text" class="send-link-input" id="sendLinkInput" readonly onclick="this.select()" />
+        <button class="btn-copy-link" onclick="copySendLinkFromModal()">복사</button>
+      </div>
+      <div class="send-link-status" id="sendLinkStatus" aria-live="polite"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeSendLinkModal()">닫기</button>
+      <a class="btn-modal-save" id="sendLinkOpen" href="#" target="_blank" rel="noopener">새 창 열기</a>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ── 모달 열기/닫기 ── */
   function openModal(questionText) {
@@ -1106,6 +1186,71 @@
 
   function handleOverlayClick(e) {
     if (e.target === document.getElementById('editModal')) closeModal();
+  }
+
+  function openSendLinkModal(url) {
+    const modal = document.getElementById('sendLinkModal');
+    const input = document.getElementById('sendLinkInput');
+    const status = document.getElementById('sendLinkStatus');
+    const openLink = document.getElementById('sendLinkOpen');
+
+    input.value = url;
+    openLink.href = url;
+    status.textContent = '';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+
+    copyTextToClipboard(url)
+      .then(() => { status.textContent = '링크가 복사되었습니다.'; })
+      .catch(() => { status.textContent = '링크를 선택하거나 복사 버튼을 눌러주세요.'; });
+  }
+
+  function closeSendLinkModal() {
+    document.getElementById('sendLinkModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function handleSendLinkOverlayClick(e) {
+    if (e.target === document.getElementById('sendLinkModal')) closeSendLinkModal();
+  }
+
+  function copySendLinkFromModal() {
+    const input = document.getElementById('sendLinkInput');
+    input.focus();
+    input.select();
+
+    copyTextToClipboard(input.value)
+      .then(() => { document.getElementById('sendLinkStatus').textContent = '링크가 복사되었습니다.'; })
+      .catch(() => { document.getElementById('sendLinkStatus').textContent = '선택된 링크를 직접 복사해주세요.'; });
+  }
+
+  async function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch (e) {
+        // 일부 브라우저/환경에서는 Clipboard API가 있어도 권한 문제로 실패할 수 있다.
+      }
+    }
+
+    const input = document.getElementById('sendLinkInput');
+    if (input && input.value === text) {
+      input.focus();
+      input.select();
+      try {
+        if (document.execCommand('copy')) return;
+      } catch (e) {
+        // execCommand 복사도 실패하면 아래에서 직접 복사를 안내한다.
+      }
+    }
+
+    throw new Error('Clipboard copy failed');
   }
 
   function saveModal() {
@@ -1156,12 +1301,15 @@
 
   /* ── ESC 키 닫기 ── */
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+      closeModal();
+      closeSendLinkModal();
+    }
   });
 
   /* ── API 연동 ── */
   const API_URL  = 'https://wbf487tf0e.execute-api.ap-northeast-2.amazonaws.com/survey';
-  const surveyId = new URLSearchParams(location.search).get('surveyId') || 'S001';
+  const surveyId = new URLSearchParams(location.search).get('surveyId') || '';
 
   async function callAPI(payload) {
     const res  = await fetch(API_URL, {
@@ -1175,9 +1323,33 @@
     return data;
   }
 
-  function qText(q) { return q.text || q.question || q.content || q.label || q.code || ''; }
+  function qText(q) { return q.text || q.questionText || q.question || q.code || ''; }
   function typeBadge(t) {
-    return t === 'SC5' ? '5점 척도형' : t === 'OE' ? '주관식' : t || '단일 선택';
+    if (!t) return '-';
+    if (t.startsWith('SC')) return `${parseInt(t.slice(2)) || 5}점 척도형`;
+    if (t === 'TXT') return '주관식';
+    return t;
+  }
+
+  function buildCustomerSurveyUrl(sid) {
+    const url = new URL('customer-survey.html', location.href);
+    url.search = '';
+    url.searchParams.set('surveyId', sid);
+    return url.toString();
+  }
+
+  function bindSendButton(sid) {
+    const sendBtn = document.querySelector('.btn-send');
+    if (!sendBtn) return;
+
+    sendBtn.onclick = () => {
+      if (!sid) {
+        alert('surveyId가 없습니다.');
+        return;
+      }
+
+      openSendLinkModal(buildCustomerSurveyUrl(sid));
+    };
   }
 
   function renderSurvey(survey) {
@@ -1230,23 +1402,21 @@
     };
 
     /* 발송하기 버튼 — 고객 설문 링크 복사 */
-    const sendBtn = document.querySelector('.btn-send');
-    const sid     = survey.surveyId || survey.survey_id || surveyId;
-    sendBtn.onclick = () => {
-      const url = location.href.replace('survey-sending.html', 'customer-survey.html')
-                              .split('?')[0] + `?surveyId=${sid}`;
-      navigator.clipboard?.writeText(url).then(() => alert(`링크 복사 완료!\n${url}`))
-                                         .catch(() => alert(`발송 링크:\n${url}`));
-    };
+    const sid = survey.surveyId || survey.survey_id || surveyId;
+    bindSendButton(sid);
   }
+
+  bindSendButton(surveyId);
 
   /* 초기 로드 */
   (async () => {
+    if (!surveyId) return; // surveyId 없으면 기본 하드코딩 UI 유지
     try {
       const data   = await callAPI({ action: 'getSurvey', surveyId });
-      renderSurvey(data?.result?.survey);
+      const survey = data?.result?.survey ?? data?.body?.survey ?? data?.survey;
+      renderSurvey(survey);
     } catch (e) {
-      console.warn('설문 로드 실패:', e.message);
+      console.warn('[survey-sending] 설문 로드 실패:', e.message);
     }
   })();
 </script>
