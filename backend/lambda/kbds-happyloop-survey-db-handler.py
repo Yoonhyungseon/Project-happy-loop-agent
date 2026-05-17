@@ -205,6 +205,136 @@ def execute_write(sql: str, parameters: Optional[List[Dict[str, Any]]] = None) -
     }
 
 
+
+
+# =========================================================
+# Survey Agent generation helpers
+# =========================================================
+
+DEFAULT_CX_STAGES = [
+    "인지/탐색",
+    "가입/시작",
+    "핵심 이용/처리",
+    "문제해결/지원",
+    "완료/재이용"
+]
+
+DEFAULT_SERVICE_QUALITY_DIMENSIONS = [
+    "신뢰성",
+    "응답성",
+    "확신성/안전성",
+    "공감성",
+    "디지털 유형성",
+    "접근성/편의성"
+]
+
+
+def get_lambda_body(value: Any) -> Dict[str, Any]:
+    """Step Functions Lambda Invoke 결과와 직접 Lambda 결과를 모두 body dict로 정규화한다."""
+    if not isinstance(value, dict):
+        return {}
+
+    if isinstance(value.get("Payload"), dict):
+        return get_body(value.get("Payload"))
+
+    return get_body(value)
+
+
+def get_nested(value: Dict[str, Any], path: List[str], default: Any = None) -> Any:
+    current = value
+
+    for key in path:
+        if not isinstance(current, dict):
+            return default
+        current = current.get(key)
+        if current is None:
+            return default
+
+    return current
+
+
+def as_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        return value
+
+    if isinstance(value, str):
+        if not value.strip():
+            return []
+        return [item.strip() for item in value.split(",") if item.strip()]
+
+    return [value]
+
+
+def unique_strings(values: List[Any]) -> List[str]:
+    seen = set()
+    result = []
+
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+
+    return result
+
+
+def json_text(value: Any, limit: int = 12000) -> str:
+    text = json.dumps(value or {}, ensure_ascii=False, default=str)
+    if len(text) > limit:
+        return text[:limit] + "...<truncated>"
+    return text
+
+
+def pick_service_from_payload(payload: Dict[str, Any], reference_context: Optional[Dict[str, Any]] = None) -> str:
+    service = payload.get("service") or payload.get("serviceName")
+
+    if not service and isinstance(reference_context, dict):
+        service = get_nested(reference_context, ["referenceSurvey", "service"])
+
+    profile = payload.get("profile")
+    if not service and isinstance(profile, dict):
+        service = profile.get("service") or profile.get("serviceName")
+
+    return str(service or "").strip()
+
+
+def categories_from_reference(reference_context: Dict[str, Any]) -> List[str]:
+    categories = []
+
+    for question in as_list(reference_context.get("questions")):
+        if isinstance(question, dict):
+            categories.append(question.get("category"))
+
+    score_summary = reference_context.get("scoreSummary") or {}
+    for item in as_list(score_summary.get("lowScoreResults")):
+        if isinstance(item, dict):
+            categories.append(item.get("category"))
+
+    for item in as_list(score_summary.get("scoreResults")):
+        if isinstance(item, dict):
+            categories.append(item.get("category"))
+
+    return unique_strings(categories)
+
+
+def table_exists(table_name: str) -> bool:
+    rows = query_rows(
+        """
+        SELECT to_regclass(:table_name)::text AS table_name
+        """,
+        [param_string("table_name", table_name)]
+    )
+
+    if not rows:
+        return False
+
+    return bool(rows[0].get("table_name"))
+
+
 def get_report_base_data(payload: Dict[str, Any]) -> Dict[str, Any]:
     survey_id = payload.get("surveyId")
 
@@ -639,6 +769,7 @@ def build_report_input(payload: Dict[str, Any]) -> Dict[str, Any]:
     })
 
 
+
 def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
     reference_survey_id = payload.get("referenceSurveyId")
 
@@ -689,7 +820,7 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
         WHERE survey_id = :survey_id
         GROUP BY keyword_item ->> 'text'
         ORDER BY count DESC, keyword ASC
-        LIMIT 10
+        LIMIT 15
         """,
         [
             param_string("survey_id", reference_survey_id)
@@ -729,6 +860,7 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
             latest_report = json.loads(report_json_text)
 
     low_score_results = []
+    category_signals = []
 
     aggregation = base_body.get("aggregation", {})
     score_results = aggregation.get("scoreResults", [])
@@ -737,9 +869,22 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
         avg_score = item.get("avgScore", 0)
         negative_rate = item.get("negativeRate", 0)
         satisfaction_index = item.get("satisfactionIndex", 0)
+        category = item.get("category")
+
+        signal = {
+            "category": category,
+            "avgScore": avg_score,
+            "positiveRate": item.get("positiveRate", 0),
+            "negativeRate": negative_rate,
+            "satisfactionIndex": satisfaction_index,
+            "priority": "NORMAL"
+        }
 
         if avg_score < 3.3 or negative_rate >= 25 or satisfaction_index < 20:
+            signal["priority"] = "HIGH"
             low_score_results.append(item)
+
+        category_signals.append(signal)
 
     reference_context = {
         "referenceSurvey": base_body.get("survey", {}),
@@ -748,7 +893,8 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
             "responseCount": aggregation.get("responseCount", 0),
             "overall": aggregation.get("overall", {}),
             "lowScoreResults": low_score_results,
-            "scoreResults": score_results
+            "scoreResults": score_results,
+            "categorySignals": category_signals
         },
         "textSummary": {
             "sentiment": {
@@ -761,10 +907,16 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
         },
         "latestReport": {
             "reportId": report_rows[0].get("report_id") if report_rows else None,
+            "createdAt": report_rows[0].get("created_at") if report_rows else None,
             "summary": latest_report.get("summary"),
             "point": latest_report.get("point"),
             "action": latest_report.get("action"),
             "conclusion": latest_report.get("conclusion")
+        },
+        "generationHints": {
+            "recommendedFocusCategories": unique_strings([item.get("category") for item in low_score_results]),
+            "reuseReferenceQuestionStyle": True,
+            "avoidDuplicatingExactQuestions": True
         }
     }
 
@@ -775,32 +927,228 @@ def get_survey_reference_data(payload: Dict[str, Any]) -> Dict[str, Any]:
     })
 
 
+def get_service_category_knowledge(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """서비스/카테고리별 배경지식을 DB에서 가져온다.
+
+    필요한 테이블은 001_service_category_knowledge.sql에 포함되어 있다.
+    테이블이 아직 없으면 빈 knowledgeItems를 반환해 Step Function이 실패하지 않도록 한다.
+    """
+    reference_data_body = get_lambda_body(payload.get("referenceDataResult"))
+    reference_context = reference_data_body.get("referenceContext", {})
+
+    service = pick_service_from_payload(payload, reference_context)
+    categories = unique_strings(
+        as_list(payload.get("categories"))
+        + categories_from_reference(reference_context)
+    )
+    limit = int(payload.get("limit", 30))
+
+    if not table_exists("public.service_category_knowledge"):
+        return success({
+            "service": service,
+            "categories": categories,
+            "knowledgeItems": [],
+            "found": False,
+            "message": "service_category_knowledge table does not exist. Run 001_service_category_knowledge.sql first.",
+            "queriedAt": now_iso()
+        })
+
+    if service:
+        rows = query_rows(
+            """
+            SELECT
+                knowledge_id,
+                service,
+                category,
+                stage,
+                quality_dimension,
+                background_text,
+                tags::text AS tags,
+                priority,
+                updated_at::text AS updated_at
+            FROM service_category_knowledge
+            WHERE is_active = TRUE
+              AND service = :service
+            ORDER BY priority DESC, updated_at DESC
+            LIMIT :limit
+            """,
+            [
+                param_string("service", service),
+                param_long("limit", limit)
+            ]
+        )
+    else:
+        rows = query_rows(
+            """
+            SELECT
+                knowledge_id,
+                service,
+                category,
+                stage,
+                quality_dimension,
+                background_text,
+                tags::text AS tags,
+                priority,
+                updated_at::text AS updated_at
+            FROM service_category_knowledge
+            WHERE is_active = TRUE
+            ORDER BY priority DESC, updated_at DESC
+            LIMIT :limit
+            """,
+            [param_long("limit", limit)]
+        )
+
+    category_set = set(categories)
+
+    def rank(row: Dict[str, Any]) -> int:
+        score = int(row.get("priority") or 0)
+        if category_set and row.get("category") in category_set:
+            score += 1000
+        return score
+
+    rows = sorted(rows, key=rank, reverse=True)[:limit]
+
+    knowledge_items = []
+    for row in rows:
+        tags = []
+        tags_text = row.get("tags")
+        if tags_text:
+            try:
+                tags = json.loads(tags_text)
+            except json.JSONDecodeError:
+                tags = []
+
+        knowledge_items.append({
+            "knowledgeId": row.get("knowledge_id"),
+            "service": row.get("service"),
+            "category": row.get("category"),
+            "stage": row.get("stage"),
+            "qualityDimension": row.get("quality_dimension"),
+            "backgroundText": row.get("background_text"),
+            "tags": tags,
+            "priority": row.get("priority") or 0,
+            "updatedAt": row.get("updated_at")
+        })
+
+    return success({
+        "service": service,
+        "categories": categories,
+        "knowledgeItems": knowledge_items,
+        "found": len(knowledge_items) > 0,
+        "queriedAt": now_iso()
+    })
+
+
 def build_survey_request(payload: Dict[str, Any]) -> Dict[str, Any]:
     user_request = payload.get("userRequest")
     reference_data_result = payload.get("referenceDataResult")
+    service_knowledge_result = payload.get("serviceKnowledgeResult")
+    profile = payload.get("profile") if isinstance(payload.get("profile"), dict) else payload
 
     if not user_request:
         raise ValueError("userRequest is required")
 
-    reference_data_body = get_body(reference_data_result)
+    reference_data_body = get_lambda_body(reference_data_result)
     reference_context = reference_data_body.get("referenceContext", {})
 
-    reference_context_text = json.dumps(reference_context, ensure_ascii=False)
+    service_knowledge_body = get_lambda_body(service_knowledge_result)
+    service_knowledge_context = {
+        "service": service_knowledge_body.get("service") or pick_service_from_payload(profile, reference_context),
+        "categories": service_knowledge_body.get("categories", []),
+        "knowledgeItems": service_knowledge_body.get("knowledgeItems", []),
+        "found": service_knowledge_body.get("found", False)
+    }
+
+    cx_stages = unique_strings(as_list(profile.get("customerExperienceStages"))) or DEFAULT_CX_STAGES
+    quality_dimensions = unique_strings(as_list(profile.get("serviceQualityDimensions"))) or DEFAULT_SERVICE_QUALITY_DIMENSIONS
+    requested_question_count = profile.get("questionCount") or profile.get("requestedQuestionCount") or 10
+    include_voc = profile.get("includeVoc")
+    if include_voc is None:
+        include_voc = True
+
+    reference_context_text = json_text(reference_context)
+    service_knowledge_text = json_text(service_knowledge_context)
+
+    use_reference = bool(reference_context)
+
+    reference_rule = """
+[참고 설문 반영 규칙]
+1. REFERENCE_CONTEXT의 기존 설문 문항 구조와 카테고리를 참고하되, 같은 문장을 그대로 복제하지 않는다.
+2. lowScoreResults, categorySignals.priority=HIGH, latestReport.point/action을 우선 반영한다.
+3. textSummary.keywords에 반복 등장한 불편 키워드는 최소 2개 이상 문항에 자연스럽게 반영한다.
+4. SERVICE_CATEGORY_KNOWLEDGE의 배경지식은 해당 서비스 특성/카테고리 맥락으로 사용한다.
+""" if use_reference else """
+[무참고 생성 규칙]
+1. referenceSurveyId가 없으므로 DB 참고 설문 없이 생성한다.
+2. 그래도 고객경험단계와 서비스품질 축은 반드시 반영한다.
+3. 이 방식은 초기 초안용이며, 실제 운영에서는 참고 설문/서비스 배경지식을 연결하는 것을 권장한다.
+"""
 
     survey_request = f"""
+너는 KBDS HappyLoop의 금융/디지털 서비스 VOC 설문 생성 Agent다.
+아래 사용자 요청을 바탕으로 관리자 화면에 저장 가능한 설문 JSON을 생성해라.
+
+[사용자 요청]
 {user_request}
 
-기존 설문 응답 분석 결과를 참고해서 후속 VOC 설문을 생성해줘.
+[생성 목표]
+- 고객 경험 단계와 서비스품질 차원을 균형 있게 반영한다.
+- 단순 만족도 문항이 아니라, 실제 서비스 접점에서 개선 액션을 뽑을 수 있는 문항을 만든다.
+- 참고 설문이 있을 때는 기존 설문양식, 응답 분석, VOC 키워드, 최신 보고서의 개선 포인트를 후속 설문 설계에 반영한다.
+- 서비스 카테고리 배경지식이 있을 때는 해당 서비스의 업무/이용 맥락을 문항에 녹인다.
 
-REFERENCE_CONTEXT:
+[고객경험단계]
+{json.dumps(cx_stages, ensure_ascii=False)}
+
+[서비스품질 차원]
+{json.dumps(quality_dimensions, ensure_ascii=False)}
+
+[문항 설계 규칙]
+1. 총 {requested_question_count}개 내외로 생성하되, 최소 8개 이상 최대 12개 이하로 구성한다.
+2. SC5 척도 문항을 중심으로 만들고, 마지막에는 TXT 주관식/VOC 문항을 1~2개 포함한다.
+3. SC5 문항은 1점 매우 불만족 ~ 5점 매우 만족 기준으로 답할 수 있어야 한다.
+4. category는 "고객경험단계 | 서비스품질차원 | 세부카테고리" 형태로 작성한다.
+5. 개인정보, 이름, 전화번호, 계좌번호 등 민감정보 입력을 유도하지 않는다.
+6. 문항은 한 번에 하나의 경험만 묻고, 이중 질문을 피한다.
+7. 운영자가 바로 액션을 뽑을 수 있도록 메뉴, 속도, 안내, 오류, 상담/지원, 재이용 같은 구체 접점을 포함한다.
+{reference_rule}
+
+[REFERENCE_CONTEXT]
 {reference_context_text}
+
+[SERVICE_CATEGORY_KNOWLEDGE]
+{service_knowledge_text}
+
+[반드시 지켜야 할 출력 형식]
+설명 없이 JSON 하나만 출력한다.
+질문 객체에는 code, type, category, text 4개 필드만 넣는다.
+허용 type은 "SC5" 또는 "TXT"뿐이다.
+
+{{
+  "type": "SURVEY",
+  "title": "",
+  "service": "",
+  "surveyType": "VOC",
+  "questions": [
+    {{"code": "Q01", "type": "SC5", "category": "핵심 이용/처리 | 신뢰성 | 거래 처리", "text": ""}},
+    {{"code": "Q02", "type": "SC5", "category": "문제해결/지원 | 응답성 | 고객 지원", "text": ""}},
+    {{"code": "Q99", "type": "TXT", "category": "VOC | 개선의견 | 자유의견", "text": ""}}
+  ]
+}}
 """.strip()
 
     return success({
         "userRequest": survey_request,
         "referenceContext": reference_context,
+        "serviceKnowledgeContext": service_knowledge_context,
+        "qualityFramework": {
+            "customerExperienceStages": cx_stages,
+            "serviceQualityDimensions": quality_dimensions
+        },
+        "useReference": use_reference,
         "builtAt": now_iso()
     })
+
 
 def list_surveys(payload: Dict[str, Any]) -> Dict[str, Any]:
     limit = int(payload.get("limit", 20))
@@ -1391,6 +1739,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         if action == "getSurveyReferenceData":
             return get_survey_reference_data(payload)
+
+        if action == "getServiceCategoryKnowledge":
+            return get_service_category_knowledge(payload)
 
         if action == "buildSurveyRequest":
             return build_survey_request(payload)
