@@ -7,9 +7,9 @@ import boto3
 
 
 BEDROCK_REGION = (
-    os.environ.get("BEDROCK_REGION")
-    or os.environ.get("AWS_REGION")
-    or "ap-northeast-2"
+        os.environ.get("BEDROCK_REGION")
+        or os.environ.get("AWS_REGION")
+        or "ap-northeast-2"
 )
 
 BEDROCK_AGENT_ID = os.environ.get("BEDROCK_AGENT_ID", "")
@@ -56,6 +56,42 @@ def extract_json(raw_text: str) -> Optional[Any]:
     return json.loads(json_text)
 
 
+
+
+def build_survey_generation_prompt(user_request: str) -> str:
+    return f"""
+너는 금융/디지털 서비스 고객경험 설문 생성 전문 AI Agent다.
+아래 요청은 이미 DB 참고 문맥, 고객경험단계, 서비스품질 차원, 출력 스키마를 포함할 수 있다.
+요청을 충실히 따르고, 반드시 JSON 하나만 반환해라.
+
+[핵심 원칙]
+1. 고객경험단계와 서비스품질 차원을 균형 있게 반영한다.
+2. 참고 설문/응답/VOC/서비스 배경지식이 제공되면 이를 우선 사용한다.
+3. 같은 문항을 반복하거나 참고 설문의 질문을 그대로 복사하지 않는다.
+4. 개인정보 입력을 유도하지 않는다.
+5. 모든 질문 객체는 code, type, category, text 필드만 가진다.
+6. type은 SC5 또는 TXT만 사용한다.
+7. SC5는 1~5점 만족도 척도로 답할 수 있는 문장으로 작성한다.
+8. TXT는 개선 의견이나 불편 경험을 구체적으로 적도록 묻되 개인정보를 요구하지 않는다.
+
+[사용자/시스템 요청]
+{user_request}
+
+[최종 출력]
+설명, 마크다운, 코드블록 없이 아래 JSON 스키마를 만족하는 JSON 객체만 출력한다.
+{{
+  "type": "SURVEY",
+  "title": "",
+  "service": "",
+  "surveyType": "VOC",
+  "questions": [
+    {{"code": "Q01", "type": "SC5", "category": "", "text": ""}},
+    {{"code": "Q99", "type": "TXT", "category": "VOC | 개선의견 | 자유의견", "text": ""}}
+  ]
+}}
+""".strip()
+
+
 def build_prompt(payload: Dict[str, Any]) -> Tuple[str, str]:
     action = payload.get("action", "raw")
 
@@ -65,25 +101,73 @@ def build_prompt(payload: Dict[str, Any]) -> Tuple[str, str]:
         if not user_request:
             raise ValueError("createSurvey action requires userRequest or prompt")
 
-        return user_request.strip(), "SURVEY"
+        return build_survey_generation_prompt(user_request.strip()), "SURVEY"
 
     if action == "generateReport":
         report_input = payload.get("reportInput")
-
+    
         if not report_input:
             raise ValueError("generateReport action requires reportInput")
-
+    
         report_input_text = json.dumps(report_input, ensure_ascii=False)
-
+    
         prompt = f"""
-아래 REPORT_INPUT을 바탕으로 VOC 응답 분석 보고서를 생성해줘.
-
-REPORT_INPUT:
-{report_input_text}
-""".strip()
-
+    너는 금융 서비스 고객 경험(VOC) 분석 전문 AI Agent다.
+    
+    아래 REPORT_INPUT 데이터를 기반으로
+    고객 응답 결과를 분석하고
+    관리자용 VOC 분석 보고서를 생성해라.
+    
+    반드시 아래 규칙을 지켜라.
+    
+    [분석 규칙]
+    1. 응답 데이터를 기반으로 전체 만족도를 분석한다.
+    2. 긍정 의견과 부정 의견을 구분한다.
+    3. 반복적으로 등장하는 핵심 키워드를 추출한다.
+    4. 고객 불편사항(pain point)을 요약한다.
+    5. 실제 운영자가 바로 참고할 수 있는 개선 액션을 제안한다.
+    6. 과장된 표현 없이 데이터 기반으로 분석한다.
+    7. 이름, 전화번호 등 개인정보는 출력하지 않는다.
+    8. 반드시 JSON 형식으로만 응답한다.
+    
+    [REPORT_INPUT]
+    {report_input_text}
+    
+    [응답 JSON 형식]
+    {{
+      "type": "REPORT",
+      "title": "",
+      "service": "",
+      "n": 0,
+      "overall": {{
+        "avg": 0,
+        "pos": 0,
+        "neg": 0,
+        "idx": "",
+        "high": "",
+        "low": ""
+      }},
+      "areas": [
+        {{
+          "cat": "",
+          "avg": 0,
+          "idx": "",
+          "status": "GOOD"
+        }}
+      ],
+      "summary": "",
+      "point": [
+        ""
+      ],
+      "action": [
+        ""
+      ],
+      "conclusion": ""
+    }}
+    """.strip()
+    
         return prompt, "REPORT"
-
+    
     prompt = payload.get("prompt")
 
     if not prompt:
@@ -129,16 +213,31 @@ def invoke_agent(prompt: str, session_id: str) -> str:
     return "".join(chunks).strip()
 
 
+
 def validate_survey(parsed_json: Dict[str, Any]) -> None:
+    for field in ["type", "title", "service", "surveyType", "questions"]:
+        if field not in parsed_json:
+            raise ValueError(f"SURVEY response requires {field}")
+
     questions = parsed_json.get("questions")
 
     if not isinstance(questions, list):
         raise ValueError("SURVEY response requires questions array")
 
-    if len(questions) == 0:
-        raise ValueError("SURVEY questions array is empty")
+    if len(questions) < 3:
+        raise ValueError("SURVEY questions array must contain at least 3 questions")
+
+    if len(questions) > 20:
+        raise ValueError("SURVEY questions array must contain at most 20 questions")
+
+    seen_codes = set()
+    txt_count = 0
+    sc5_count = 0
 
     for question in questions:
+        if not isinstance(question, dict):
+            raise ValueError("SURVEY question must be an object")
+
         allowed_fields = {"code", "type", "category", "text"}
         required_fields = {"code", "type", "category", "text"}
 
@@ -152,10 +251,39 @@ def validate_survey(parsed_json: Dict[str, Any]) -> None:
         if extra_fields:
             raise ValueError(f"SURVEY question has unsupported fields: {sorted(extra_fields)}")
 
+        code = str(question.get("code") or "").strip()
+        category = str(question.get("category") or "").strip()
+        text = str(question.get("text") or "").strip()
+
+        if not code:
+            raise ValueError("SURVEY question code is empty")
+
+        if code in seen_codes:
+            raise ValueError(f"duplicated question code: {code}")
+
+        seen_codes.add(code)
+
+        if not category:
+            raise ValueError(f"SURVEY question category is empty: {code}")
+
+        if not text:
+            raise ValueError(f"SURVEY question text is empty: {code}")
+
         question_type = question.get("type")
 
         if question_type not in ["SC5", "TXT"]:
             raise ValueError(f"Invalid question type: {question_type}")
+
+        if question_type == "TXT":
+            txt_count += 1
+        if question_type == "SC5":
+            sc5_count += 1
+
+    if sc5_count == 0:
+        raise ValueError("SURVEY must contain at least one SC5 question")
+
+    if txt_count == 0:
+        raise ValueError("SURVEY must contain at least one TXT question")
 
 
 def validate_report(parsed_json: Dict[str, Any]) -> None:

@@ -90,44 +90,72 @@ def invoke_db_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
     return parsed_payload
 
 
-def create_survey(payload: Dict[str, Any]) -> Dict[str, Any]:
+
+SURVEY_SFN_INPUT_KEYS = {
+    "userRequest",
+    "referenceSurveyId",
+    "service",
+    "serviceName",
+    "surveyType",
+    "targetCustomer",
+    "goal",
+    "purpose",
+    "categories",
+    "customerExperienceStages",
+    "serviceQualityDimensions",
+    "questionCount",
+    "includeVoc",
+    "adminUserId"
+}
+
+
+def build_create_survey_input(payload: Dict[str, Any], require_reference: bool = False) -> Dict[str, Any]:
     user_request = payload.get("userRequest")
 
     if not user_request:
         raise ValueError("userRequest is required")
 
-    sfn_input = {
-        "userRequest": user_request
-    }
+    reference_survey_id = payload.get("referenceSurveyId")
+
+    if require_reference and not reference_survey_id:
+        raise ValueError("referenceSurveyId is required")
+
+    sfn_input = {}
+
+    for key in SURVEY_SFN_INPUT_KEYS:
+        if key in payload and payload.get(key) is not None:
+            sfn_input[key] = payload.get(key)
+
+    sfn_input["userRequest"] = user_request
+    sfn_input["generationMode"] = "REFERENCE" if reference_survey_id else "DIRECT"
+
+    return sfn_input
+
+
+
+def create_survey(payload: Dict[str, Any]) -> Dict[str, Any]:
+    sfn_input = build_create_survey_input(payload, require_reference=False)
+
+    name_prefix = "create-survey-ref" if sfn_input.get("referenceSurveyId") else "create-survey"
 
     result = start_execution(
         state_machine_arn=CREATE_SURVEY_SFN_ARN,
         input_payload=sfn_input,
-        name_prefix="create-survey"
+        name_prefix=name_prefix
     )
 
     return response(200, {
         "action": "createSurvey",
         "status": "STARTED",
         "input": sfn_input,
+        "recommendation": None if sfn_input.get("referenceSurveyId") else "referenceSurveyId를 함께 보내면 기존 설문/응답/VOC/서비스 배경지식을 참고해 더 정교하게 생성됩니다.",
         **result
     })
 
 
 def create_survey_with_reference(payload: Dict[str, Any]) -> Dict[str, Any]:
-    user_request = payload.get("userRequest")
-    reference_survey_id = payload.get("referenceSurveyId")
-
-    if not user_request:
-        raise ValueError("userRequest is required")
-
-    if not reference_survey_id:
-        raise ValueError("referenceSurveyId is required")
-
-    sfn_input = {
-        "userRequest": user_request,
-        "referenceSurveyId": reference_survey_id
-    }
+    sfn_input = build_create_survey_input(payload, require_reference=True)
+    sfn_input["generationMode"] = "REFERENCE"
 
     result = start_execution(
         state_machine_arn=CREATE_SURVEY_SFN_ARN,
@@ -312,6 +340,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return create_survey(payload)
 
         if action == "createSurveyWithReference":
+            return create_survey_with_reference(payload)
+
+        if action == "createSurveyFromReference":
             return create_survey_with_reference(payload)
 
         if action == "createReport":
